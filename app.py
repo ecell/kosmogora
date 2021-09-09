@@ -7,6 +7,9 @@ logger = getLogger(__name__)
 
 MODELS = ['sample1']
 
+class XMLResponse(Response):
+    media_type = "application/xml"
+
 
 app = FastAPI()
 
@@ -14,16 +17,16 @@ app = FastAPI()
 def models():
     return {"models": MODELS}
 
-@app.post("/sbml/{name}")
-def model(name: str):
+@app.get("/sbml/{name}", response_class=XMLResponse)
+def sbml(name: str):
     if name not in MODELS:
-        return {}
+        return Response(content='<?xml version="1.0" encoding="UTF-8"?>', media_type="application/xml")
 
     with open(f'./models/{name}.xml', 'r') as f:
         data = f.read()
     return Response(content=data, media_type="application/xml")
 
-@app.post("/model/{name}")
+@app.get("/model/{name}")
 def model(name: str):
     if name not in MODELS:
         return {}
@@ -32,7 +35,7 @@ def model(name: str):
         data = json.load(f)
     return data
 
-@app.post("/solve/{name}")
+@app.get("/solve/{name}")
 def solve(name: str, knockouts: str = Query(None)):
     if name not in MODELS:
         return {}
@@ -41,7 +44,6 @@ def solve(name: str, knockouts: str = Query(None)):
         knockouts = []
     else:
         knockouts = knockouts.split(',')
-    print(knockouts)
 
     model = cobra.io.read_sbml_model(f'./models/{name}.xml')
 
