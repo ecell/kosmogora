@@ -14,3 +14,5 @@ $ uvicorn --host [your ip address] app:app
 ```
 
 Open your browser at `http://[your ip address]:8000/docs`.
+
+See more about FastAPI here: https://fastapi.tiangolo.com/
