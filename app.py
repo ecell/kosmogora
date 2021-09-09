@@ -51,13 +51,15 @@ def solve(name: str, knockouts: str = Query(None)):
         for reaction_id in knockouts:
             if not model.reactions.has_id(reaction_id):
                 #XXX: Say something here
-                print(f'Reaction [{reaction_id}] not found.')
+                logger.warn(f'Reaction [{reaction_id}] not found.')
                 continue
 
             model.reactions.get_by_id(reaction_id).knock_out()
         solution = model.optimize()
 
-    data = solution.fluxes.copy()
+    data = {
+        'fluxes': sorted(solution.fluxes.items(), key=lambda kv: kv[0]),
+        'objective_value': solution.objective_value}
     return data
 
 # @app.get("/hello")
