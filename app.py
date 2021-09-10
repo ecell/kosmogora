@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, Body, Response
+from fastapi import FastAPI, Query, Body, Response, HTTPException
 
 import json
 import cobra.io
@@ -17,28 +17,28 @@ app = FastAPI()
 def models():
     return {"models": MODELS}
 
-@app.get("/sbml/{name}", response_class=XMLResponse)
+@app.get("/sbml/{name}", response_class=XMLResponse, responses={404: {'description': 'Model not found'}})
 def sbml(name: str):
     if name not in MODELS:
-        return Response(content='<?xml version="1.0" encoding="UTF-8"?>', media_type="application/xml")
+        raise HTTPException(status_code=404, detail="Model not found")
 
     with open(f'./models/{name}.xml', 'r') as f:
         data = f.read()
     return Response(content=data, media_type="application/xml")
 
-@app.get("/model/{name}")
+@app.get("/model/{name}", responses={404: {'description': 'Model not found'}})
 def model(name: str):
     if name not in MODELS:
-        return {}
+        raise HTTPException(status_code=404, detail="Model not found")
 
     with open(f'./models/{name}.cyjs', 'r') as f:
         data = json.load(f)
     return data
 
-@app.get("/solve/{name}")
+@app.get("/solve/{name}", responses={404: {'description': 'Model not found'}})
 def solve(name: str, knockouts: str = Query(None)):
     if name not in MODELS:
-        return {}
+        raise HTTPException(status_code=404, detail="Model not found")
 
     if knockouts is None:
         knockouts = []
@@ -50,7 +50,6 @@ def solve(name: str, knockouts: str = Query(None)):
     with model:
         for reaction_id in knockouts:
             if not model.reactions.has_id(reaction_id):
-                #XXX: Say something here
                 logger.warn(f'Reaction [{reaction_id}] not found.')
                 continue
 
