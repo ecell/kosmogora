@@ -16,3 +16,4 @@
 
 - A SBML file for COBRA (https://cobrapy.readthedocs.io/en/latest/io.html#SBML)
 - The file name should end with `.xml`.
+- The file name must correspond to the model name (`sample1.xml` -> `sample1`).
