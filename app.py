@@ -5,7 +5,7 @@ import cobra.io
 from logging import getLogger
 logger = getLogger(__name__)
 
-MODELS = ['sample1']
+MODELS = ['sample1', 'iJO1366']
 
 class XMLResponse(Response):
     media_type = "application/xml"
