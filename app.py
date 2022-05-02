@@ -7,15 +7,39 @@ logger = getLogger(__name__)
 
 MODELS = ['sample1', 'iJO1366']
 
+class Models_Views:
+    def __init__(self):
+        # This should be loaded from files such as XML and YAML.
+        self.views = {
+            'sample1' : ['sample1'],
+            'iJO1366' : ['iJO1366'],
+        }
+
+    def models(self):
+        return list( self.views.keys() )
+
+    def views_of_model(self, model_name: str):
+        return self.views[model_name]
+
 class XMLResponse(Response):
     media_type = "application/xml"
 
 
 app = FastAPI()
+models_views = Models_Views()
 
 @app.get("/models")
 def models():
-    return {"models": MODELS}
+    #return {"models": MODELS}
+    model_list = models_views.models()
+    return {"models": model_list}
+
+@app.get("/views/{model_name}", responses={404: {'description': 'Model not found'}})
+def views(model_name: str):
+    if model_name not in models_views.models():
+        raise HTTPException(status_code=404, detail="Model not found")
+    return {"views": models_views.views_of_model(model_name)}
+
 
 @app.get("/sbml/{name}", response_class=XMLResponse, responses={404: {'description': 'Model not found'}})
 def sbml(name: str):
@@ -28,6 +52,16 @@ def sbml(name: str):
 
 @app.get("/model/{name}", responses={404: {'description': 'Model not found'}})
 def model(name: str):
+    # XXX This function originally should responce model, instead of *.cyjs.
+    if name not in MODELS:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    with open(f'./models/{name}.cyjs', 'r') as f:
+        data = json.load(f)
+    return data
+
+@app.get("/view/{name}", responses={404: {'description': 'Model not found'}})
+def view(name: str):
     if name not in MODELS:
         raise HTTPException(status_code=404, detail="Model not found")
 
