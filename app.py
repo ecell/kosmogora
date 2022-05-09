@@ -5,7 +5,7 @@ import cobra.io
 from logging import getLogger
 logger = getLogger(__name__)
 
-MODELS = ['sample1', 'iJO1366']
+#MODELS = ['sample1', 'iJO1366']
 
 class Models_Views:
     def __init__(self):
@@ -30,12 +30,13 @@ models_views = Models_Views()
 
 @app.get("/models")
 def models():
-    #return {"models": MODELS}
+    """Returns the list of available models."""
     model_list = models_views.models()
     return {"models": model_list}
 
 @app.get("/views/{model_name}", responses={404: {'description': 'Model not found'}})
 def views(model_name: str):
+    """Returns available views related to the queried model"""
     if model_name not in models_views.models():
         raise HTTPException(status_code=404, detail="Model not found")
     return {"views": models_views.views_of_model(model_name)}
@@ -43,17 +44,18 @@ def views(model_name: str):
 
 @app.get("/sbml/{name}", response_class=XMLResponse, responses={404: {'description': 'Model not found'}})
 def sbml(name: str):
-    if name not in MODELS:
+    """Returns the model, written in XML format. """
+    if name not in models_views.models():
         raise HTTPException(status_code=404, detail="Model not found")
 
     with open(f'./models/{name}.xml', 'r') as f:
         data = f.read()
     return Response(content=data, media_type="application/xml")
 
-@app.get("/model/{name}", responses={404: {'description': 'Model not found'}})
+@app.get("/model/{name}", responses={404: {'description': 'Model not found'}}, deprecated=True)
 def model(name: str):
     # XXX This function originally should responce model, instead of *.cyjs.
-    if name not in MODELS:
+    if name not in models_views.models():
         raise HTTPException(status_code=404, detail="Model not found")
 
     with open(f'./models/{name}.cyjs', 'r') as f:
@@ -62,7 +64,8 @@ def model(name: str):
 
 @app.get("/view/{name}", responses={404: {'description': 'Model not found'}})
 def view(name: str):
-    if name not in MODELS:
+    """Returns the view in .cyjs format"""
+    if name not in models_views.views_of_model(name):
         raise HTTPException(status_code=404, detail="Model not found")
 
     with open(f'./models/{name}.cyjs', 'r') as f:
@@ -71,7 +74,7 @@ def view(name: str):
 
 @app.get("/solve/{name}", responses={404: {'description': 'Model not found'}})
 def solve(name: str, knockouts: str = Query(None)):
-    if name not in MODELS:
+    if name not in models_views.models():
         raise HTTPException(status_code=404, detail="Model not found")
 
     if knockouts is None:
