@@ -37,4 +37,11 @@ def test_call_solve():
     response = client.get('/solve/iJO1366')
     assert "fluxes" in response.json()
     assert "objective_value" in response.json()
+    assert abs(response.json()["objective_value"] - 0.9823718127269787) < 0.0001
+    assert response.status_code == 200
+
+    #Try knowkout
+    response2 = client.get('/solve/iJO1366?knockouts=UPP3S,EX_so4_e')
+    assert "fluxes" in response2.json()
+    assert "objective_value" in response2.json()
     assert response.status_code == 200

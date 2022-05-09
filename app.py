@@ -74,6 +74,7 @@ def view(name: str):
 
 @app.get("/solve/{name}", responses={404: {'description': 'Model not found'}})
 def solve(name: str, knockouts: str = Query(None)):
+    """ Execute the flux balance analysis (FBA) """
     if name not in models_views.models():
         raise HTTPException(status_code=404, detail="Model not found")
 
@@ -81,6 +82,7 @@ def solve(name: str, knockouts: str = Query(None)):
         knockouts = []
     else:
         knockouts = knockouts.split(',')
+        logger.warning(f'Solve {name} model with {len(knockouts)} knowkout')
 
     model = cobra.io.read_sbml_model(f'./models/{name}.xml')
 
