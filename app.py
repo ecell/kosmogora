@@ -10,11 +10,6 @@ logger = getLogger(__name__)
 class Models_Views:
     def __init__(self):
         # This should be loaded from files such as XML and YAML.
-        #XXX self.views = {
-        #XXX     'sample1' : ['sample1'],
-        #XXX     'iJO1366' : ['iJO1366'],
-        #XXX }
-
         self.model_set = {
             'sample1' : {"database_type" : "kegg", "default_view" : "sample1", "version" : "1.0.0", "organ" : "EColi" },
             'iJO1366' : {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi" }
@@ -26,6 +21,21 @@ class Models_Views:
 
     def models(self):
         return list( self.model_set.keys() )
+    
+    def model_property(self, model_name: str):
+        if model_name in self.model_set:
+            return self.model_set[model_name]
+        else:
+            return None
+    
+    def views(self):
+        return list( self.view_set.keys() )
+
+    def view_property(self, view_name: str):
+        if view_name in self.view_set:
+            return self.view_set[view_name]
+        else:
+            return None
 
     def views_of_model(self, model_name: str):
         #return self.views[model_name]
