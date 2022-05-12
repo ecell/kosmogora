@@ -10,16 +10,31 @@ logger = getLogger(__name__)
 class Models_Views:
     def __init__(self):
         # This should be loaded from files such as XML and YAML.
-        self.views = {
-            'sample1' : ['sample1'],
-            'iJO1366' : ['iJO1366'],
+        #XXX self.views = {
+        #XXX     'sample1' : ['sample1'],
+        #XXX     'iJO1366' : ['iJO1366'],
+        #XXX }
+
+        self.model_set = {
+            'sample1' : {"database_type" : "kegg", "default_view" : "sample1", "version" : "1.0.0", "organ" : "EColi" },
+            'iJO1366' : {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi" }
+        }
+        self.view_set = {
+            "sample1" : {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi" },
+            "iJO1366" : {"database_type" : "bigg", "model" : "iJO1366", "version" : "1.0.0", "organ" : "EColi" }
         }
 
     def models(self):
-        return list( self.views.keys() )
+        return list( self.model_set.keys() )
 
     def views_of_model(self, model_name: str):
-        return self.views[model_name]
+        #return self.views[model_name]
+        ret_val = []
+        for view_name, properties in self.view_set.items():
+            if "model" in properties and properties["model"] == model_name:
+                ret_val.append(view_name)
+
+        return ret_val
 
 class XMLResponse(Response):
     media_type = "application/xml"
