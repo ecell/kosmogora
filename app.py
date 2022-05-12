@@ -87,6 +87,14 @@ def model(name: str):
         data = json.load(f)
     return data
 
+@app.get("/model_property/{name}", responses={404: {'description': 'Model not found'}})
+def model_property(name: str):
+    """Returns the model property, such as reference database, version. """
+    if name not in models_views.models():
+        raise HTTPException(status_code=404, detail="Model not found")
+    data = models_views.model_property(name)
+    return data
+
 @app.get("/view/{name}", responses={404: {'description': 'Model not found'}})
 def view(name: str):
     """Returns the view in .cyjs format"""
@@ -95,6 +103,14 @@ def view(name: str):
 
     with open(f'./models/{name}.cyjs', 'r') as f:
         data = json.load(f)
+    return data
+
+@app.get("/view_property/{name}", responses={404: {'description': 'Model not found'}})
+def view_property(name: str):
+    """Returns the view property, such as reference database, version. """
+    if name not in models_views.views():
+        raise HTTPException(status_code=404, detail="Model not found")
+    data = models_views.view_property(name)
     return data
 
 @app.get("/solve/{name}", responses={404: {'description': 'Model not found'}})

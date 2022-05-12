@@ -27,10 +27,20 @@ def test_call_model():
     response = client.get('/model/iJO1366')
     assert response.status_code == 200
 
+def test_call_model_property():
+    response = client.get('/model_property/iJO1366')
+    assert response.status_code == 200
+    assert response.json() == {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi" }
+
 # Get the view in *.cyjs format of iJO1366 (<- view name, not model name)
 def test_call_view():
     response = client.get('/view/iJO1366')
     assert response.status_code == 200
+
+def test_call_view_property():
+    response = client.get('/view_property/sample1')
+    assert response.status_code == 200
+    assert response.json() == {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi" }
 
 # Execute the FBA.
 def test_call_solve():
