@@ -42,6 +42,11 @@ def test_call_view_property():
     assert response.status_code == 200
     assert response.json() == {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi" }
 
+def test_edit_model():
+    response = client.get('edit/iJO1366/bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
+    assert response.status_code == 200
+    assert response.json()[0] == True
+
 # Execute the FBA.
 def test_call_solve():
     response = client.get('/solve/iJO1366')
