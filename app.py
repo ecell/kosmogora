@@ -12,8 +12,8 @@ class Models_Views:
     def __init__(self):
         # This should be loaded from files such as XML and YAML.
         self.model_set = {
-            'sample1' : {"database_type" : "kegg", "default_view" : "sample1", "version" : "1.0.0", "organ" : "EColi" },
-            'iJO1366' : {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi" }
+            'sample1' : {"database_type" : "kegg", "default_view" : "sample1", "version" : "1.0.0", "organ" : "EColi", "path": "./models/sample1.xml" },
+            'iJO1366' : {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi", "path": "./models/iJO1366.xml" }
         }
         self.view_set = {
             "sample1" : {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi" },
@@ -166,8 +166,9 @@ def edit_model(name: str, commands : str):
         raise HTTPException(status_code=404, detail="Model not found")
 
     # First, Open the existence model
-    model = cobra.io.read_sbml_model(f'./models/{name}.xml')
-    model_hanlder = ModelHandler(f'./models/{name}.xml')
+    model_path = models_views.model_property(name)["path"]
+    model = cobra.io.read_sbml_model(model_path)
+    model_hanlder = ModelHandler(model_path)
 
     if commands is None:
         commands = []
@@ -222,7 +223,8 @@ def solve(name: str, knockouts: str = Query(None)):
         knockouts = knockouts.split(',')
         logger.warning(f'Solve {name} model with {len(knockouts)} knowkout')
 
-    model = cobra.io.read_sbml_model(f'./models/{name}.xml')
+    model_path = models_views.model_property(name)["path"]
+    model = cobra.io.read_sbml_model(model_path)
 
     with model:
         for reaction_id in knockouts:
@@ -231,6 +233,34 @@ def solve(name: str, knockouts: str = Query(None)):
                 continue
 
             model.reactions.get_by_id(reaction_id).knock_out()
+        solution = model.optimize()
+
+    data = {
+        'fluxes': sorted(solution.fluxes.items(), key=lambda kv: kv[0]),
+        'objective_value': solution.objective_value}
+    return data
+
+@app.get("/solve2/{name}", responses={404: {'description': 'Model not found'}})
+def solve2(name: str):
+    """ 
+    Execute the flux balance analysis (FBA). 
+    The 'name' parameter can accept both the pre-defined models and 
+    the user-modified model, which is the result of the 'edit_model' 
+    """
+
+    import os
+    model_path = None
+    print(f"***{name} ")
+    if name in models_views.models():
+        model_path = models_views.model_property(name)["path"]
+    elif os.path.isfile(f"./temporary/{name}.xml"):
+        model_path = f"./temporary/{name}.xml"
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    model = cobra.io.read_sbml_model(model_path)
+
+    with model:
         solution = model.optimize()
 
     data = {

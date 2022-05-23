@@ -30,7 +30,7 @@ def test_call_model():
 def test_call_model_property():
     response = client.get('/model_property/iJO1366')
     assert response.status_code == 200
-    assert response.json() == {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi" }
+    assert response.json() == {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi", "path": "./models/iJO1366.xml" }
 
 # Get the view in *.cyjs format of iJO1366 (<- view name, not model name)
 def test_call_view():
@@ -43,9 +43,15 @@ def test_call_view_property():
     assert response.json() == {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi" }
 
 def test_edit_model():
-    response = client.get('edit/iJO1366/bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
+    response = client.get('/edit/iJO1366/bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
     assert response.status_code == 200
     assert response.json()[0] == True
+    modified_model_name = response.json()[1]
+    print(f"edit_model: modified_model_name: {modified_model_name}")
+    response2 = client.get(f'/solve2/{modified_model_name}')
+    assert response2.status_code == 200
+
+
 
 # Execute the FBA.
 def test_call_solve():
@@ -59,4 +65,21 @@ def test_call_solve():
     response2 = client.get('/solve/iJO1366?knockouts=UPP3S,EX_so4_e')
     assert "fluxes" in response2.json()
     assert "objective_value" in response2.json()
+    assert response2.status_code == 200
+
+# Execute the FBA.
+def test_call_solve2():
+    response = client.get('/solve2/iJO1366')
+    assert "fluxes" in response.json()
+    assert "objective_value" in response.json()
+    assert abs(response.json()["objective_value"] - 0.9823718127269787) < 0.0001
     assert response.status_code == 200
+
+def test_call_solve2b():
+    response = client.get('/edit/iJO1366/bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
+    assert response.status_code == 200
+    assert response.json()[0] == True
+    modified_model_name = response.json()[1]
+    print(f"edit_model: modified_model_name: {modified_model_name}")
+    response2 = client.get(f'/solve2/{modified_model_name}')
+    assert response2.status_code == 200
