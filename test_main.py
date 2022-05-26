@@ -72,3 +72,17 @@ def test_call_solve2_with_modification():
     assert "fluxes" in response.json()
     assert "objective_value" in response.json()
     assert response.status_code == 200
+
+def test_save_model():
+    response = client.get('/save_model/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex&author=Newton Laphthon')
+    assert response.status_code == 200
+
+def test_solve_user_defined_model():
+    response = client.get('/save_model/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex&author=Newton Laphthon')
+    filename = response.json()
+    response2 = client.get(f'/solve3/{filename}')
+    assert response2.status_code == 200
+
+    ref = client.get('/solve2/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
+    assert ref.json()["objective_value"] == response2.json()["objective_value"]
+    

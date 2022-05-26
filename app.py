@@ -297,6 +297,57 @@ def solve2(name: str, modification : str = Query(None) ):
     return solution
 
 
+@app.get("/save_model/{name}/", responses={404: {'description': 'Model not found'}})
+def save_model(name: str, modification: str = Query(None), author = Query(None), description = Query(None)):
+    import yaml
+    model_path = None
+    if not name in models_views.models():
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    file_basename = f"{name}_{make_time_string()}"
+    filepath = f"user_defined_model/{file_basename}.yaml"      
+    data = {
+        "base_model" : name,
+        "modification" : modification,
+        "author" : author,
+        "description" : description
+    }   
+    with open(filepath, "w") as file:
+        yaml.dump(data, file)
+    return file_basename
+
+@app.get("/solve3/{name}/", responses={404: {'description': 'Model not found'}})
+def solve3(name: str, modification : str = Query(None) ):
+    import os,yaml
+    model_path = None
+    filepath = f"user_defined_model/{name}.yaml"      
+    if not os.path.isfile(filepath):
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    user_defined_data = dict()
+    with open(filepath) as file:
+        user_defined_data = yaml.safe_load(file)
+
+    assert "base_model" in user_defined_data
+    assert "modification" in user_defined_data
+
+    model_path = None
+    base_model = user_defined_data["base_model"]
+    if base_model in models_views.models():
+        model_path = models_views.model_property(base_model)["path"]
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    model_handler = ModelHandler(model_path)
+    model_handler.edit_model_by_query_str(user_defined_data["modification"])
+
+    if modification != None:
+        result= model_handler.edit_model_by_query_str(modification)
+        print(f"model edit: {result}")
+
+    solution = model_handler.solve()
+    return solution
+
 # @app.get("/hello")
 # def hello():
 #    return {"Hello": "World!"}
