@@ -5,7 +5,8 @@ from typing import Optional
 import json
 import cobra.io
 from logging import getLogger
-logger = getLogger(__name__)
+#logger = getLogger(__name__)
+logger = getLogger('uvicorn')
 
 #MODELS = ['sample1', 'iJO1366']
 class Models_Views:
@@ -64,33 +65,63 @@ class ModelHandler:
     def load_model(self, base_filename: str) -> None:
         self.model = cobra.io.read_sbml_model(base_filename)
 
-    def bounds(self, reaction_id : str, lower_bound: float, upper_bound : float) -> bool:
+    def apply_bounds(self, reaction_id : str, lower_bound: float, upper_bound : float) -> bool:
+        assert self.model != None
         ret_flag = False
-        if self.model != None:
-            if self.model.reactions.has_id(reaction_id):
-                self.model.reactions.get_by_id(reaction_id).bounds = (lower_bound, upper_bound)
-                self.num_modified += 1
-                ret_flag = True 
+        if self.model.reactions.has_id(reaction_id):
+            self.model.reactions.get_by_id(reaction_id).bounds = (lower_bound, upper_bound)
+            self.num_modified += 1
+            ret_flag = True 
         return ret_flag
             
-    def knockout(self, reaction_id: str) -> bool :
+    def apply_knockout(self, reaction_id: str) -> bool :
+        assert self.model != None
         ret_flag = False
-        if self.model != None:
-            if self.model.reactions.has_id(reaction_id):
-                self.model.reactions.get_by_id(reaction_id).knock_out()
-                self.num_modified += 1
-                ret_flag = True 
+        if self.model.reactions.has_id(reaction_id):
+            self.model.reactions.get_by_id(reaction_id).knock_out()
+            self.num_modified += 1
+            ret_flag = True 
         return ret_flag
+
+    def edit_model_by_query_str(self, commands: str = None) -> int:
+        if commands == None:
+            commands = []
+        else:
+            commands = commands.split(',')
+            
+        print(commands)
+        for cmd in commands:
+            cmd = cmd.split('_')
+            if cmd[0] == "bound":
+                assert len(cmd) == 4
+                reaction_id = cmd[1]
+                lower_bound, upper_bound = float(cmd[2]), float(cmd[3])
+                result = self.apply_bounds(reaction_id, lower_bound, upper_bound)
+                if result != True:
+                    raise Exception("apply bound failure")
+
+            elif cmd[0] == "knockout":
+                assert len(cmd) == 2
+                reaction_id = cmd[1]
+                result = self.apply_knockout(reaction_id)
+                if result != True:
+                    raise Exception("apply knockout failure")
+
+        return self.num_applied_modification()
+
+    def solve(self):
+        assert self.model != None
+        with self.model:
+            solution = self.model.optimize()
+
+        data = {
+            'fluxes': sorted(solution.fluxes.items(), key=lambda kv: kv[0]),
+            'objective_value': solution.objective_value}
+
+        return data
 
     def num_applied_modification(self) -> int:
         return self.num_modified
-    
-    def save_model(self, filename: str) -> bool :
-        if self.model != None:
-            cobra.io.write_sbml_model(self.model, filename)
-            return True
-        else:
-            return False
 
 
 @app.get("/models")
@@ -159,7 +190,7 @@ def make_time_string():
     d = '{:%Y%m%d%H%M%S}'.format(now)
     return d
 
-@app.get("/edit/{name}/{commands}", responses={404: {'description': 'Model not found'}})
+@app.get("/edit/{name}/{commands}", responses={404: {'description': 'Model not found'}}, deprecated=True)
 def edit_model(name: str, commands : str):
     """Edit model by and save."""
     if name not in models_views.models():
@@ -211,7 +242,7 @@ def edit_model(name: str, commands : str):
     else:
         return (False)
 
-@app.get("/solve/{name}", responses={404: {'description': 'Model not found'}})
+@app.get("/solve/{name}", responses={404: {'description': 'Model not found'}}, deprecated=True)
 def solve(name: str, knockouts: str = Query(None)):
     """ Execute the flux balance analysis (FBA) """
     if name not in models_views.models():
@@ -240,33 +271,31 @@ def solve(name: str, knockouts: str = Query(None)):
         'objective_value': solution.objective_value}
     return data
 
-@app.get("/solve2/{name}", responses={404: {'description': 'Model not found'}})
-def solve2(name: str):
+@app.get("/solve2/{name}/", responses={404: {'description': 'Model not found'}})
+def solve2(name: str, modification : str = Query(None) ):
     """ 
     Execute the flux balance analysis (FBA). 
     The 'name' parameter can accept both the pre-defined models and 
     the user-modified model, which is the result of the 'edit_model' 
     """
 
-    import os
     model_path = None
-    print(f"***{name} ")
     if name in models_views.models():
         model_path = models_views.model_property(name)["path"]
-    elif os.path.isfile(f"./temporary/{name}.xml"):
-        model_path = f"./temporary/{name}.xml"
     else:
         raise HTTPException(status_code=404, detail="Model not found")
 
-    model = cobra.io.read_sbml_model(model_path)
+    print(f"Solve2: model file: {model_path}")
+    print(f"commands: {modification}")
 
-    with model:
-        solution = model.optimize()
+    model_handler = ModelHandler(model_path)
+    if modification != None:
+        result= model_handler.edit_model_by_query_str(modification)
+        print(f"model edit: {result}")
 
-    data = {
-        'fluxes': sorted(solution.fluxes.items(), key=lambda kv: kv[0]),
-        'objective_value': solution.objective_value}
-    return data
+    solution = model_handler.solve()
+    return solution
+
 
 # @app.get("/hello")
 # def hello():

@@ -42,18 +42,10 @@ def test_call_view_property():
     assert response.status_code == 200
     assert response.json() == {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi" }
 
-def test_edit_model():
-    response = client.get('/edit/iJO1366/bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
-    assert response.status_code == 200
-    assert response.json()[0] == True
-    modified_model_name = response.json()[1]
-    print(f"edit_model: modified_model_name: {modified_model_name}")
-    response2 = client.get(f'/solve2/{modified_model_name}')
-    assert response2.status_code == 200
 
 
 
-# Execute the FBA.
+# Execute the FBA. : Previous implementation of solve.
 def test_call_solve():
     response = client.get('/solve/iJO1366')
     assert "fluxes" in response.json()
@@ -67,7 +59,7 @@ def test_call_solve():
     assert "objective_value" in response2.json()
     assert response2.status_code == 200
 
-# Execute the FBA.
+# Execute the FBA, without any modification for base model.
 def test_call_solve2():
     response = client.get('/solve2/iJO1366')
     assert "fluxes" in response.json()
@@ -75,11 +67,8 @@ def test_call_solve2():
     assert abs(response.json()["objective_value"] - 0.9823718127269787) < 0.0001
     assert response.status_code == 200
 
-def test_call_solve2b():
-    response = client.get('/edit/iJO1366/bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
+def test_call_solve2_with_modification():
+    response = client.get('/solve2/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
+    assert "fluxes" in response.json()
+    assert "objective_value" in response.json()
     assert response.status_code == 200
-    assert response.json()[0] == True
-    modified_model_name = response.json()[1]
-    print(f"edit_model: modified_model_name: {modified_model_name}")
-    response2 = client.get(f'/solve2/{modified_model_name}')
-    assert response2.status_code == 200
