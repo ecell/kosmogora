@@ -231,58 +231,6 @@ def make_time_string():
     d = '{:%Y%m%d%H%M}'.format(now)
     return d
 
-@app.get("/edit/{name}/{commands}", responses={404: {'description': 'Model not found'}}, deprecated=True)
-def edit_model(name: str, commands : str):
-    """Edit model by and save."""
-    if name not in models_views.models():
-        raise HTTPException(status_code=404, detail="Model not found")
-
-    # First, Open the existence model
-    model_path = models_views.model_property(name)["path"]
-    model = cobra.io.read_sbml_model(model_path)
-    model_hanlder = ModelHandler(model_path)
-
-    if commands is None:
-        commands = []
-    commands = commands.split(',')
-    for cmd in commands:
-        cmd = cmd.split('_')
-        print(cmd)
-        # BOUNDARY
-        if cmd[0] == 'bound':
-            print("bound")
-            if len(cmd) != 4:
-                raise HTTPException(status_code=404, detail="Invalid command")
-            reaction_id = cmd[1]
-            lower_bound = float(cmd[2])
-            upper_bound = float(cmd[3])
-            result = model_hanlder.bounds(reaction_id, lower_bound, upper_bound)
-            if result != True:
-                print(f"Fail: {cmd}")
-
-        elif cmd[0] == 'knockout':
-            print("knockcout")
-            if len(cmd) != 2:
-                raise HTTPException(status_code=404, detail="Invalid command")
-            reaction_id = cmd[1]
-            result = model_hanlder.knockout(reaction_id)
-            if result != True:
-                print(f"Fail: {cmd}")
-
-        else:
-            #raise HTTPException(status_code=404, detail=f"Unknown command: {cmd[0]}")
-            logger.warn(f'Unknown command: {cmd[0]}')
-            modified_flag = False
-
-    applied_modification = model_hanlder.num_applied_modification()
-    if 0 < applied_modification:
-        modified_model_name = f'{model}_{make_time_string()}'
-        model_hanlder.save_model(f'./temporary/{modified_model_name}.xml')
-        print(modified_model_name)
-        return (True, modified_model_name)
-    else:
-        return (False)
-
 @app.get("/solve/{name}", responses={404: {'description': 'Model not found'}}, deprecated=True)
 def solve(name: str, knockouts: str = Query(None)):
     """ Execute the flux balance analysis (FBA) """
