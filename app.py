@@ -57,13 +57,40 @@ models_views = Models_Views()
 
 class ModelHandler:
     def __init__(self, base_filename : Optional[str] = None):
+        self.base_filename = base_filename
+        self.applied_commands = []
         self.num_modified = 0   # the number of the applied modification
         self.model = None
+
         if base_filename != None:
             self.load_model(base_filename)
 
     def load_model(self, base_filename: str) -> None:
+        self.base_filename = base_filename
         self.model = cobra.io.read_sbml_model(base_filename)
+
+    def load_user_model(self, usermodel_path: str) -> None :
+        import yaml 
+        user_defined_data = dict()
+        with open(usermodel_path) as file:
+            user_defined_data = yaml.safe_load(file)
+
+        assert "base_model" in user_defined_data
+        assert "modification" in user_defined_data
+        self.load_model(user_defined_data["base_model"])
+        self.edit_model_by_query_str(user_defined_data["modification"])
+    
+    def save_user_model(self, outfile_path: str, author : str, description : str) -> None :
+        import yaml
+        data = {
+            "base_model" : self.base_filename,
+            "modification" : ','.join(self.applied_commands) ,
+            "author" : author,
+            "description" : description
+        }   
+        with open(outfile_path, "w") as file:
+            yaml.dump(data, file)
+
 
     def apply_bounds(self, reaction_id : str, lower_bound: float, upper_bound : float) -> bool:
         assert self.model != None
@@ -106,6 +133,7 @@ class ModelHandler:
                 result = self.apply_knockout(reaction_id)
                 if result != True:
                     raise Exception("apply knockout failure")
+        self.applied_commands += commands    
 
         return self.num_applied_modification()
 
@@ -271,75 +299,39 @@ def solve(name: str, knockouts: str = Query(None)):
         'objective_value': solution.objective_value}
     return data
 
-@app.get("/solve2/{name}/", responses={404: {'description': 'Model not found'}})
-def solve2(name: str, modification : str = Query(None) ):
-    """ 
-    Execute the flux balance analysis (FBA). 
-    The 'name' parameter can accept both the pre-defined models and 
-    the user-modified model, which is the result of the 'edit_model' 
-    """
 
+@app.get("/save_model/{name}/", responses={404: {'description': 'Model not found'}})
+def save_model(name: str, modification: str = Query(None), author = Query(None), description = Query(None)):
+    import yaml
     model_path = None
     if name in models_views.models():
         model_path = models_views.model_property(name)["path"]
     else:
         raise HTTPException(status_code=404, detail="Model not found")
 
-    print(f"Solve2: model file: {model_path}")
-    print(f"commands: {modification}")
-
     model_handler = ModelHandler(model_path)
-    if modification != None:
-        result= model_handler.edit_model_by_query_str(modification)
-        print(f"model edit: {result}")
-
-    solution = model_handler.solve()
-    return solution
-
-
-@app.get("/save_model/{name}/", responses={404: {'description': 'Model not found'}})
-def save_model(name: str, modification: str = Query(None), author = Query(None), description = Query(None)):
-    import yaml
-    model_path = None
-    if not name in models_views.models():
-        raise HTTPException(status_code=404, detail="Model not found")
+    model_handler.edit_model_by_query_str(modification)
     
-    file_basename = f"{name}_{make_time_string()}"
-    filepath = f"user_defined_model/{file_basename}.yaml"      
-    data = {
-        "base_model" : name,
-        "modification" : modification,
-        "author" : author,
-        "description" : description
-    }   
-    with open(filepath, "w") as file:
-        yaml.dump(data, file)
-    return file_basename
+    outfile_basename = f"{name}_{make_time_string()}"
+    outfile_path = f"user_defined_model/{outfile_basename}.yaml"      
+    model_handler.save_user_model(outfile_path, author, description)
+    return outfile_basename
 
 @app.get("/solve3/{name}/", responses={404: {'description': 'Model not found'}})
 def solve3(name: str, modification : str = Query(None) ):
     import os,yaml
     model_path = None
-    filepath = f"user_defined_model/{name}.yaml"      
-    if not os.path.isfile(filepath):
-        raise HTTPException(status_code=404, detail="Model not found")
+    usermodel_path = f"user_defined_model/{name}.yaml"      
 
-    user_defined_data = dict()
-    with open(filepath) as file:
-        user_defined_data = yaml.safe_load(file)
-
-    assert "base_model" in user_defined_data
-    assert "modification" in user_defined_data
-
-    model_path = None
-    base_model = user_defined_data["base_model"]
-    if base_model in models_views.models():
-        model_path = models_views.model_property(base_model)["path"]
+    model_handler = ModelHandler()
+    # check whether user defined model, or raw model
+    if name in models_views.models():
+        model_path = models_views.model_property(name)["path"]
+        model_handler.load_model(model_path)
+    elif os.path.isfile(usermodel_path):
+        model_handler.load_user_model(usermodel_path)
     else:
         raise HTTPException(status_code=404, detail="Model not found")
-
-    model_handler = ModelHandler(model_path)
-    model_handler.edit_model_by_query_str(user_defined_data["modification"])
 
     if modification != None:
         result= model_handler.edit_model_by_query_str(modification)
