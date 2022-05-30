@@ -7,19 +7,19 @@ client = TestClient(app)
 
 # First, list the registered model.
 def test_call_models():
-    response = client.get("/models")
+    response = client.get("/list_models")
     assert response.status_code == 200
     assert response.json() == {"models": ["sample1", "iJO1366"]}
 
 # Second, List the views related to iJO1366
 def test_call_views():
-    response = client.get("/views/iJO1366")
+    response = client.get("/list_views/iJO1366")
     assert response.status_code == 200
     assert response.json() == {"views": ["iJO1366"]}
     
 # Third, get the model in *.xml of iJO1366
 def test_call_sbml():
-    response = client.get('/sbml/iJO1366')
+    response = client.get('/open_sbml/iJO1366')
     assert response.status_code == 200
 
 # Get the model in *.xml of iJO1366. This is same as sbml() at present.
@@ -28,17 +28,17 @@ def test_call_model():
     assert response.status_code == 200
 
 def test_call_model_property():
-    response = client.get('/model_property/iJO1366')
+    response = client.get('/get_model_property/iJO1366')
     assert response.status_code == 200
     assert response.json() == {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi", "path": "./models/iJO1366.xml" }
 
 # Get the view in *.cyjs format of iJO1366 (<- view name, not model name)
 def test_call_view():
-    response = client.get('/view/iJO1366')
+    response = client.get('/open_view/iJO1366')
     assert response.status_code == 200
 
 def test_call_view_property():
-    response = client.get('/view_property/sample1')
+    response = client.get('/get_view_property/sample1')
     assert response.status_code == 200
     assert response.json() == {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi" }
 

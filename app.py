@@ -152,6 +152,10 @@ class ModelHandler:
         return self.num_modified
 
 def open_model(model_name: str):
+    """ 
+    Opens the model and return the ModelHandler object.
+    The model_name is either raw model or user_defined model.
+    """
     import os
     usermodel_path = f"user_defined_model/{model_name}.yaml"      
     model_handler = ModelHandler()
@@ -165,22 +169,22 @@ def open_model(model_name: str):
         model_handler = None
     return model_handler
 
-@app.get("/models")
-def models():
+@app.get("/list_models")
+def list_models():
     """Returns the list of available models."""
     model_list = models_views.models()
     return {"models": model_list}
 
-@app.get("/views/{model_name}", responses={404: {'description': 'Model not found'}})
-def views(model_name: str):
+@app.get("/list_views/{model_name}", responses={404: {'description': 'Model not found'}})
+def list_views(model_name: str):
     """Returns available views related to the queried model"""
     if model_name not in models_views.models():
         raise HTTPException(status_code=404, detail="Model not found")
     return {"views": models_views.views_of_model(model_name)}
 
 
-@app.get("/sbml/{name}", response_class=XMLResponse, responses={404: {'description': 'Model not found'}})
-def sbml(name: str):
+@app.get("/open_sbml/{name}", response_class=XMLResponse, responses={404: {'description': 'Model not found'}})
+def open_sbml(name: str):
     """Returns the model, written in XML format. """
     if name not in models_views.models():
         raise HTTPException(status_code=404, detail="Model not found")
@@ -199,16 +203,16 @@ def model(name: str):
         data = json.load(f)
     return data
 
-@app.get("/model_property/{name}", responses={404: {'description': 'Model not found'}})
-def model_property(name: str):
+@app.get("/get_model_property/{name}", responses={404: {'description': 'Model not found'}})
+def get_model_property(name: str):
     """Returns the model property, such as reference database, version. """
     if name not in models_views.models():
         raise HTTPException(status_code=404, detail="Model not found")
     data = models_views.model_property(name)
     return data
 
-@app.get("/view/{name}", responses={404: {'description': 'Model not found'}})
-def view(name: str):
+@app.get("/open_view/{name}", responses={404: {'description': 'Model not found'}})
+def open_view(name: str):
     """Returns the view in .cyjs format"""
     if name not in models_views.views_of_model(name):
         raise HTTPException(status_code=404, detail="Model not found")
@@ -217,8 +221,8 @@ def view(name: str):
         data = json.load(f)
     return data
 
-@app.get("/view_property/{name}", responses={404: {'description': 'Model not found'}})
-def view_property(name: str):
+@app.get("/get_view_property/{name}", responses={404: {'description': 'Model not found'}})
+def get_view_property(name: str):
     """Returns the view property, such as reference database, version. """
     if name not in models_views.views():
         raise HTTPException(status_code=404, detail="Model not found")
