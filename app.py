@@ -317,8 +317,8 @@ def save_model(name: str, modification: str = Query(None), author = Query(None),
     model_handler.save_user_model(outfile_path, author, description)
     return outfile_basename
 
-@app.get("/solve3/{name}/", responses={404: {'description': 'Model not found'}})
-def solve3(name: str, modification : str = Query(None) ):
+@app.get("/solve2/{name}/", responses={404: {'description': 'Model not found'}})
+def solve2(name: str, modification : str = Query(None) ):
     import os,yaml
     model_path = None
     usermodel_path = f"user_defined_model/{name}.yaml"      

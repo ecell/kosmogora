@@ -60,29 +60,33 @@ def test_call_solve():
     assert response2.status_code == 200
 
 # Execute the FBA, without any modification for base model.
-def test_call_solve3():
-    response = client.get('/solve3/iJO1366')
+def test_call_solve2():
+    response = client.get('/solve2/iJO1366')
     assert "fluxes" in response.json()
     assert "objective_value" in response.json()
     assert abs(response.json()["objective_value"] - 0.9823718127269787) < 0.0001
     assert response.status_code == 200
 
-def test_call_solve3_with_modification():
-    response = client.get('/solve3/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
+def test_call_solve2_with_modification():
+    response = client.get('/solve2/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
     assert "fluxes" in response.json()
     assert "objective_value" in response.json()
     assert response.status_code == 200
 
-def test_save_model():
-    response = client.get('/save_model/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex&author=Newton Laphthon')
-    assert response.status_code == 200
-
-def test_solve_user_defined_model():
+def test_call_solve2_user_defined_model():
     response = client.get('/save_model/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex&author=Newton Laphthon')
     filename = response.json()
-    response2 = client.get(f'/solve3/{filename}')
+    response2 = client.get(f'/solve2/{filename}')
     assert response2.status_code == 200
 
-    ref = client.get('/solve3/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
+    ref = client.get('/solve2/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
     assert ref.json()["objective_value"] == response2.json()["objective_value"]
     
+def test_call_solve2_user_defined_model_and_modification():
+    response = client.get('/save_model/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2&author=Newton Laphthon')
+    filename = response.json()
+    response2 = client.get(f'/solve2/{filename}?modification=knockout_DHAtex')
+    assert response2.status_code == 200
+
+    ref = client.get('/solve2/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
+    assert ref.json()["objective_value"] == response2.json()["objective_value"]
