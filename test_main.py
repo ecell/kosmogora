@@ -90,3 +90,9 @@ def test_call_solve2_user_defined_model_and_modification():
 
     ref = client.get('/solve2/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
     assert ref.json()["objective_value"] == response2.json()["objective_value"]
+
+def test_save_model_update():
+    response = client.get('/save_model/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2&author=Newton Laphthon')
+    filename = response.json()
+    response2 = client.get(f'/save_model/{filename}?modification=knockout_DHAtex&author=Tonny')
+    assert response2.status_code == 200

@@ -151,6 +151,19 @@ class ModelHandler:
     def num_applied_modification(self) -> int:
         return self.num_modified
 
+def open_model(model_name: str):
+    import os
+    usermodel_path = f"user_defined_model/{model_name}.yaml"      
+    model_handler = ModelHandler()
+
+    if model_name in models_views.models(): # case 1: Base Model
+        model_path = models_views.model_property(model_name)["path"]
+        model_handler.load_model(model_path)
+    elif os.path.isfile(usermodel_path):   # case 2: User defined model
+        model_handler.load_user_model(usermodel_path)
+    else:   # Error
+        model_handler = None
+    return model_handler
 
 @app.get("/models")
 def models():
@@ -215,7 +228,7 @@ def view_property(name: str):
 def make_time_string():
     import datetime
     now = datetime.datetime.now()
-    d = '{:%Y%m%d%H%M%S}'.format(now)
+    d = '{:%Y%m%d%H%M}'.format(now)
     return d
 
 @app.get("/edit/{name}/{commands}", responses={404: {'description': 'Model not found'}}, deprecated=True)
@@ -302,15 +315,12 @@ def solve(name: str, knockouts: str = Query(None)):
 
 @app.get("/save_model/{name}/", responses={404: {'description': 'Model not found'}})
 def save_model(name: str, modification: str = Query(None), author = Query(None), description = Query(None)):
-    import yaml
-    model_path = None
-    if name in models_views.models():
-        model_path = models_views.model_property(name)["path"]
-    else:
+    model_handler = open_model(name)
+    if not isinstance(model_handler, ModelHandler):
         raise HTTPException(status_code=404, detail="Model not found")
 
-    model_handler = ModelHandler(model_path)
-    model_handler.edit_model_by_query_str(modification)
+    if modification != None:
+        model_handler.edit_model_by_query_str(modification)
     
     outfile_basename = f"{name}_{make_time_string()}"
     outfile_path = f"user_defined_model/{outfile_basename}.yaml"      
@@ -319,18 +329,8 @@ def save_model(name: str, modification: str = Query(None), author = Query(None),
 
 @app.get("/solve2/{name}/", responses={404: {'description': 'Model not found'}})
 def solve2(name: str, modification : str = Query(None) ):
-    import os,yaml
-    model_path = None
-    usermodel_path = f"user_defined_model/{name}.yaml"      
-
-    model_handler = ModelHandler()
-    # check whether user defined model, or raw model
-    if name in models_views.models():
-        model_path = models_views.model_property(name)["path"]
-        model_handler.load_model(model_path)
-    elif os.path.isfile(usermodel_path):
-        model_handler.load_user_model(usermodel_path)
-    else:
+    model_handler = open_model(name)
+    if not isinstance(model_handler, ModelHandler):
         raise HTTPException(status_code=404, detail="Model not found")
 
     if modification != None:
