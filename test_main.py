@@ -9,7 +9,8 @@ client = TestClient(app)
 def test_call_models():
     response = client.get("/list_models")
     assert response.status_code == 200
-    assert response.json() == {"models": ["sample1", "iJO1366"]}
+    #assert response.json() == {"models": ["sample1", "iJO1366"]}
+    assert len(response.json()["models"]) == 2
 
 # Second, List the views related to iJO1366
 def test_call_views():
@@ -74,8 +75,9 @@ def test_call_solve2_with_modification():
     assert response.status_code == 200
 
 def test_call_solve2_user_defined_model():
-    response = client.get('/save_model/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex&author=Newton Laphthon')
+    response = client.get('/save_model/iJO1366_mod1/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex&author=Newton Laphthon')
     filename = response.json()
+    filename = "iJO1366_mod1"
     response2 = client.get(f'/solve2/{filename}')
     assert response2.status_code == 200
 
@@ -83,7 +85,7 @@ def test_call_solve2_user_defined_model():
     assert ref.json()["objective_value"] == response2.json()["objective_value"]
     
 def test_call_solve2_user_defined_model_and_modification():
-    response = client.get('/save_model/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2&author=Newton Laphthon')
+    response = client.get('/save_model/iJO1366_mod2/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2&author=Newton Laphthon')
     filename = response.json()
     response2 = client.get(f'/solve2/{filename}?modification=knockout_DHAtex')
     assert response2.status_code == 200
@@ -92,7 +94,9 @@ def test_call_solve2_user_defined_model_and_modification():
     assert ref.json()["objective_value"] == response2.json()["objective_value"]
 
 def test_save_model_update():
-    response = client.get('/save_model/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2&author=Newton Laphthon')
+    response = client.get('/save_model/iJO1366_mod3/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2&author=Newton Laphthon')
     filename = response.json()
-    response2 = client.get(f'/save_model/{filename}?modification=knockout_DHAtex&author=Tonny')
+    response2 = client.get(f'/save_model/iJO1366_mod4/iJO1366_mod3?modification=knockout_DHAtex&author=Tonny')
     assert response2.status_code == 200
+    response3 = client.get(f'/save_model/iJO1366_mod4/iJO1366_mod5?modification=knockout_DHAtex&author=Tonny')
+    assert response3.status_code == 404

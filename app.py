@@ -7,19 +7,29 @@ import cobra.io
 from logging import getLogger
 #logger = getLogger(__name__)
 logger = getLogger('uvicorn')
+import default
+import yaml
 
 #MODELS = ['sample1', 'iJO1366']
 class Models_Views:
     def __init__(self):
         # This should be loaded from files such as XML and YAML.
-        self.model_set = {
-            'sample1' : {"database_type" : "kegg", "default_view" : "sample1", "version" : "1.0.0", "organ" : "EColi", "path": "./models/sample1.xml" },
-            'iJO1366' : {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi", "path": "./models/iJO1366.xml" }
-        }
-        self.view_set = {
-            "sample1" : {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi" },
-            "iJO1366" : {"database_type" : "bigg", "model" : "iJO1366", "version" : "1.0.0", "organ" : "EColi" }
-        }
+        #self.model_set = {
+        #    'sample1' : {"database_type" : "kegg", "default_view" : "sample1", "version" : "1.0.0", "organ" : "EColi", "path": "./models/sample1.xml" },
+        #    'iJO1366' : {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi", "path": "./models/iJO1366.xml" }
+        #}
+        #self.view_set = {
+        #    "sample1" : {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi" },
+        #    "iJO1366" : {"database_type" : "bigg", "model" : "iJO1366", "version" : "1.0.0", "organ" : "EColi" }
+        #}
+        self.model_set = self.read_yaml(default.RegisteredModelFile)[default.ModelRootKey]
+        self.view_set  = self.read_yaml(default.RegisteredViewFile)[default.ViewRootKey]
+        self.user_defined_model_set = self.read_yaml(default.UserDefinedModelFile)[default.UserModelRootKey]
+
+    def read_yaml(self, filename: str):
+        with open(filename) as file:
+            ret = yaml.safe_load(file)
+        return ret
 
     def models(self):
         return list( self.model_set.keys() )
@@ -47,6 +57,18 @@ class Models_Views:
                 ret_val.append(view_name)
 
         return ret_val
+    
+    def user_defined_models(self):
+        return list(self.user_defined_model_set.keys() )
+
+    def register_model(self, model_name : str , new_model_path : str, author : str ):
+        self.user_defined_model_set[model_name] = {
+            # "base_model" : base_model_name,
+            "model_path" : new_model_path, 
+            "author" : author
+        }
+        with open(default.UserDefinedModelFile, "w") as file:
+            yaml.dump({default.UserModelRootKey : self.user_defined_model_set }, file)
 
 class XMLResponse(Response):
     media_type = "application/xml"
@@ -75,15 +97,15 @@ class ModelHandler:
         with open(usermodel_path) as file:
             user_defined_data = yaml.safe_load(file)
 
-        assert "base_model" in user_defined_data
+        assert "base_model_path" in user_defined_data
         assert "modification" in user_defined_data
-        self.load_model(user_defined_data["base_model"])
+        self.load_model(user_defined_data["base_model_path"])
         self.edit_model_by_query_str(user_defined_data["modification"])
     
     def save_user_model(self, outfile_path: str, author : str, description : str) -> None :
         import yaml
         data = {
-            "base_model" : self.base_filename,
+            "base_model_path" : self.base_filename,
             "modification" : ','.join(self.applied_commands) ,
             "author" : author,
             "description" : description
@@ -265,19 +287,34 @@ def solve(name: str, knockouts: str = Query(None)):
     return data
 
 
-@app.get("/save_model/{name}/", responses={404: {'description': 'Model not found'}})
-def save_model(name: str, modification: str = Query(None), author = Query(None), description = Query(None)):
-    model_handler = open_model(name)
+@app.get("/save_model/{new_model_name}/{base_model_name}/", responses={404: {'description': 'Model not found'}})
+def save_model(new_model_name: str, base_model_name: str, modification: str = Query(None), author = Query(None), description = Query(None)):
+    """
+    Save user defined model.
+    For the base_model_name, both prepared model and other user-defined model can be specified.
+    """
+    model_handler = open_model(base_model_name)
     if not isinstance(model_handler, ModelHandler):
         raise HTTPException(status_code=404, detail="Model not found")
 
     if modification != None:
         model_handler.edit_model_by_query_str(modification)
     
-    outfile_basename = f"{name}_{make_time_string()}"
-    outfile_path = f"user_defined_model/{outfile_basename}.yaml"      
+    #outfile_basename = f"{base_model_name}_{make_time_string()}"
+    #outfile_path = f"user_defined_model/{outfile_basename}.yaml"      
+    outfile_path = f"user_defined_model/{new_model_name}.yaml"
     model_handler.save_user_model(outfile_path, author, description)
-    return outfile_basename
+    models_views.register_model(new_model_name, outfile_path, author)
+    return new_model_name
+
+@app.get("/list_user_model/", responses={404: {'description': 'Model not found'}})
+def list_user_defined_models():
+    """
+    Get the list of the user defined models.
+    """
+    model_list = models_views.user_defined_models()
+    return {"user_defined_models": model_list}
+
 
 @app.get("/solve2/{name}/", responses={404: {'description': 'Model not found'}})
 def solve2(name: str, modification : str = Query(None) ):
