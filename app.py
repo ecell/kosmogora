@@ -329,6 +329,16 @@ def solve2(name: str, modification : str = Query(None) ):
     solution = model_handler.solve()
     return solution
 
+@app.get("/get_user_modification/{user_model_name}/", responses={404: {'description': 'Model not found'}})
+def get_user_modification(user_model_name: str):
+    import os
+    user_model_path = f"user_defined_model/{user_model_name}.yaml"      
+    if os.path.isfile(user_model_path):  
+        with open(user_model_path) as file:
+            return yaml.safe_load(file)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
 # @app.get("/hello")
 # def hello():
 #    return {"Hello": "World!"}

@@ -1,4 +1,5 @@
 import yaml
+import os
 
 RegisteredModelFile  = "./data/registered_model.yaml"
 RegisteredViewFile   = "./data/registered_view.yaml"
@@ -27,6 +28,9 @@ if __name__ == '__main__':
         with open(RegisteredViewFile, "w") as file:
                 yaml.dump({ViewRootKey : view_set}, file)
 
-        with open(UserDefinedModelFile, "w") as file:
-                yaml.dump({UserModelRootKey: {}}, file)
+        if not os.path.isfile(UserDefinedModelFile):
+            with open(UserDefinedModelFile, "w") as file:
+                    yaml.dump({UserModelRootKey: {}}, file)
+        else:
+            pass
 
