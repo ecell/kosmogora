@@ -100,3 +100,9 @@ def test_save_model_update():
     assert response2.status_code == 200
     response3 = client.get(f'/save_model/iJO1366_mod4/iJO1366_mod5?modification=knockout_DHAtex&author=Tonny')
     assert response3.status_code == 404
+
+def test_specify_reaction_by_view():
+    ref = client.get('/solve2/iJO1366?modification=bound_31_0.01_0.5,bound_32_-0.01_0.2&view_name=iJO1366')
+    response = client.get('/save_model/iJO1366_mod6/iJO1366?modification=bound_31_0.01_0.5,bound_32_-0.01_0.2&author=Newton Laphthon&view_name=iJO1366')
+    ref2 = client.get('/solve2/iJO1366_mod6')
+    assert ref.json()["objective_value"] == ref2.json()["objective_value"]

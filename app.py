@@ -5,6 +5,8 @@ from typing import Optional
 import json
 import cobra.io
 from logging import getLogger
+
+from pyrsistent import v
 #logger = getLogger(__name__)
 logger = getLogger('uvicorn')
 import default
@@ -96,18 +98,36 @@ app = FastAPI()
 models_views = Models_Views()
 
 class ModelHandler:
-    def __init__(self, base_filename : Optional[str] = None):
+    def __init__(self, base_filename : Optional[str] = None, view_path : Optional[str] = None ):
         self.base_filename = base_filename
         self.applied_commands = []
         self.num_modified = 0   # the number of the applied modification
         self.model = None
 
+        self.view_path = view_path
+        self.rxn_specified_by_viewid = False
+
         if base_filename != None:
             self.load_model(base_filename)
+
+        if view_path != None:
+            self.set_view_file(view_path)
 
     def load_model(self, base_filename: str) -> None:
         self.base_filename = base_filename
         self.model = cobra.io.read_sbml_model(base_filename)
+
+    def set_view_file(self, view_path: str) -> None:
+        # Generate table that relate the edge_id to reaction_id defined in database.
+        self.view_path = view_path
+        self.edgeID_to_rxnID = {}
+        with open(self.view_path, 'r') as f:
+            view = json.load(f)
+            for edge in view["elements"]["edges"]:
+                edge_id = edge["data"]["id"]
+                rxn_id = edge["data"]["bigg_id"]
+                self.edgeID_to_rxnID[edge_id] = rxn_id
+        self.rxn_specified_by_viewid = True
 
     def load_user_model(self, usermodel_path: str) -> None :
         import yaml 
@@ -117,6 +137,8 @@ class ModelHandler:
 
         assert "base_model_path" in user_defined_data
         assert "modification" in user_defined_data
+        if "view_path" in user_defined_data:
+            self.set_view_file(user_defined_data["view_path"])
         self.load_model(user_defined_data["base_model_path"])
         self.edit_model_by_query_str(user_defined_data["modification"])
     
@@ -128,6 +150,8 @@ class ModelHandler:
             "author" : author,
             "description" : description
         }   
+        if self.rxn_specified_by_viewid == True:
+            data["view_path"] = self.view_path
         with open(outfile_path, "w") as file:
             yaml.dump(data, file)
 
@@ -162,6 +186,10 @@ class ModelHandler:
             if cmd[0] == "bound":
                 assert len(cmd) == 4
                 reaction_id = cmd[1]
+                if self.rxn_specified_by_viewid == True:
+                    reaction_id = self.edgeID_to_rxnID[cmd[1]]
+                    print(f"boundary: rxn-id conversion: {cmd[1]} => {reaction_id}")           
+
                 lower_bound, upper_bound = float(cmd[2]), float(cmd[3])
                 result = self.apply_bounds(reaction_id, lower_bound, upper_bound)
                 if result != True:
@@ -170,6 +198,11 @@ class ModelHandler:
             elif cmd[0] == "knockout":
                 assert len(cmd) == 2
                 reaction_id = cmd[1]
+
+                if self.rxn_specified_by_viewid == True:
+                    reaction_id = self.edgeID_to_rxnID[cmd[1]]
+                    print(f"knockout: rxn-id conversion: {cmd[1]} => {reaction_id}")           
+
                 result = self.apply_knockout(reaction_id)
                 if result != True:
                     raise Exception("apply knockout failure")
@@ -191,7 +224,7 @@ class ModelHandler:
     def num_applied_modification(self) -> int:
         return self.num_modified
 
-def open_model(model_name: str):
+def open_model(model_name: str, view_path: Optional[str] = None):
     """ 
     Opens the model and return the ModelHandler object.
     The model_name is either raw model or user_defined model.
@@ -203,6 +236,8 @@ def open_model(model_name: str):
     if model_name in models_views.models(): # case 1: Base Model
         model_path = models_views.model_property(model_name)["path"]
         model_handler.load_model(model_path)
+        if view_path != None:
+            model_handler.set_view_file(view_path)
     elif os.path.isfile(usermodel_path):   # case 2: User defined model
         model_handler.load_user_model(usermodel_path)
     else:   # Error
@@ -306,12 +341,15 @@ def solve(name: str, knockouts: str = Query(None)):
 
 
 @app.get("/save_model/{new_model_name}/{base_model_name}/", responses={404: {'description': 'Model not found'}})
-def save_model(new_model_name: str, base_model_name: str, modification: str = Query(None), author = Query(None), description = Query(None)):
+def save_model(new_model_name: str, base_model_name: str, modification: str = Query(None), author = Query(None), description = Query(None), view_name = Query(None)):
     """
     Save user defined model.
     For the base_model_name, both prepared model and other user-defined model can be specified.
     """
-    model_handler = open_model(base_model_name)
+    view_path = None
+    if view_name != None:
+        view_path = f'./models/{view_name}.cyjs'
+    model_handler = open_model(base_model_name, view_path)
     if not isinstance(model_handler, ModelHandler):
         raise HTTPException(status_code=404, detail="Model not found")
 
@@ -335,8 +373,11 @@ def list_user_defined_models():
 
 
 @app.get("/solve2/{name}/", responses={404: {'description': 'Model not found'}})
-def solve2(name: str, modification : str = Query(None) ):
-    model_handler = open_model(name)
+def solve2(name: str, modification : str = Query(None), view_name : str = Query(None) ):
+    view_path = None
+    if view_name != None:
+        view_path = f'./models/{view_name}.cyjs'
+    model_handler = open_model(name, view_path)
     if not isinstance(model_handler, ModelHandler):
         raise HTTPException(status_code=404, detail="Model not found")
 
