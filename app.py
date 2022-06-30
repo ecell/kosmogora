@@ -6,7 +6,7 @@ import json
 import cobra.io
 from logging import getLogger
 
-from pyrsistent import v
+#from pyrsistent import v
 #logger = getLogger(__name__)
 logger = getLogger('uvicorn')
 import default
