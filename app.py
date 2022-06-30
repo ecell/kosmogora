@@ -9,6 +9,7 @@ from logging import getLogger
 logger = getLogger('uvicorn')
 import default
 import yaml
+from datetime import datetime
 
 #MODELS = ['sample1', 'iJO1366']
 class Models_Views:
@@ -25,6 +26,21 @@ class Models_Views:
         self.model_set = self.read_yaml(default.RegisteredModelFile)[default.ModelRootKey]
         self.view_set  = self.read_yaml(default.RegisteredViewFile)[default.ViewRootKey]
         self.user_defined_model_set = self.read_yaml(default.UserDefinedModelFile)[default.UserModelRootKey]
+
+        #validity_hours = 10
+        validity_hours = None
+        if validity_hours != None:
+            current_time = datetime.today()
+            temp = dict()
+            #temp = set(filter( lambda x: (datetime.strptime(x["date"], "%Y-%m-%d_%H:%M:%S") - current_time).seconds < validity_hours * 3600, self.user_defined_model_set) )
+            for key, val in self.user_defined_model_set.items():
+                dt = current_time - datetime.strptime(val["date"], "%Y-%m-%d_%H:%M:%S")
+                #print("{} - {} \t= {}s ".format( datetime.strptime(val["date"], "%Y-%m-%d_%H:%M:%S" ), current_time, dt.seconds ))
+                if dt.seconds <= validity_hours * 3600:
+                    print("{} passed".format(val))
+                    temp[key] = val
+            self.user_defined_model_set = temp
+            
 
     def read_yaml(self, filename: str):
         with open(filename) as file:
@@ -62,10 +78,12 @@ class Models_Views:
         return list(self.user_defined_model_set.keys() )
 
     def register_model(self, model_name : str , new_model_path : str, author : str ):
+        date_str = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
         self.user_defined_model_set[model_name] = {
             # "base_model" : base_model_name,
             "model_path" : new_model_path, 
-            "author" : author
+            "author" : author,
+            "date" : date_str,
         }
         with open(default.UserDefinedModelFile, "w") as file:
             yaml.dump({default.UserModelRootKey : self.user_defined_model_set }, file)
@@ -331,6 +349,9 @@ def solve2(name: str, modification : str = Query(None) ):
 
 @app.get("/get_user_modification/{user_model_name}/", responses={404: {'description': 'Model not found'}})
 def get_user_modification(user_model_name: str):
+    '''
+    Returns the modifications of the specified user-defined model;
+    '''
     import os
     user_model_path = f"user_defined_model/{user_model_name}.yaml"      
     if os.path.isfile(user_model_path):  
