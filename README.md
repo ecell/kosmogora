@@ -13,6 +13,13 @@ Install libraries:
 $ conda install -c conda-forge fastapi uvicorn cobra
 ```
 
+Preparation before launch the server
+
+```
+$ mkdir data
+$ python default.py
+```
+
 Run the server with:
 
 ```
