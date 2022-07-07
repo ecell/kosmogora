@@ -6,7 +6,6 @@ import json
 import cobra.io
 from logging import getLogger
 
-#from pyrsistent import v
 #logger = getLogger(__name__)
 logger = getLogger('uvicorn')
 import default
@@ -15,6 +14,9 @@ from datetime import datetime
 
 #MODELS = ['sample1', 'iJO1366']
 class Models_Views:
+    '''
+    This class manage the models and views.
+    '''
     def __init__(self):
         # This should be loaded from files such as XML and YAML.
         #self.model_set = {
@@ -45,30 +47,49 @@ class Models_Views:
             
 
     def read_yaml(self, filename: str):
+        '''
+        Reads yaml file which contain the information of the models and views.
+        '''
         with open(filename) as file:
             ret = yaml.safe_load(file)
         return ret
 
     def models(self):
+        '''
+        Return the list of the available models.
+        The list does not include Models modified by users.
+        In order to get the list of the models modified by users, user_defined_models() should be called.
+        '''
         return list( self.model_set.keys() )
     
     def model_property(self, model_name: str):
+        '''
+        Returns the property of the model.
+        '''
         if model_name in self.model_set:
             return self.model_set[model_name]
         else:
             return None
     
     def views(self):
+        '''
+        Return the list of the available views.
+        '''
         return list( self.view_set.keys() )
 
     def view_property(self, view_name: str):
+        '''
+        Returns the property of the view.
+        '''
         if view_name in self.view_set:
             return self.view_set[view_name]
         else:
             return None
 
     def views_of_model(self, model_name: str):
-        #return self.views[model_name]
+        '''
+        Returns the views, which is related to a queried model.
+        '''
         ret_val = []
         for view_name, properties in self.view_set.items():
             if "model" in properties and properties["model"] == model_name:
@@ -77,12 +98,14 @@ class Models_Views:
         return ret_val
     
     def user_defined_models(self):
+        '''
+        Return the list of the available models, which is modified by the users.
+        '''
         return list(self.user_defined_model_set.keys() )
 
     def register_model(self, model_name : str , new_model_path : str, author : str ):
         date_str = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
         self.user_defined_model_set[model_name] = {
-            # "base_model" : base_model_name,
             "model_path" : new_model_path, 
             "author" : author,
             "date" : date_str,
@@ -98,6 +121,9 @@ app = FastAPI()
 models_views = Models_Views()
 
 class ModelHandler:
+    '''
+    This class manages to do the FBA and modify the models.
+    '''
     def __init__(self, base_filename : Optional[str] = None, view_path : Optional[str] = None ):
         self.base_filename = base_filename
         self.applied_commands = []
@@ -130,6 +156,9 @@ class ModelHandler:
         self.rxn_specified_by_viewid = True
 
     def load_user_model(self, usermodel_path: str) -> None :
+        '''
+        Load and apply the modification defined by users, which is based on the pre-defined model.
+        '''
         import yaml 
         user_defined_data = dict()
         with open(usermodel_path) as file:
@@ -143,6 +172,9 @@ class ModelHandler:
         self.edit_model_by_query_str(user_defined_data["modification"])
     
     def save_user_model(self, outfile_path: str, author : str, description : str) -> None :
+        '''
+        Save the modifications defined by the users.
+        '''
         import yaml
         data = {
             "base_model_path" : self.base_filename,
@@ -157,6 +189,10 @@ class ModelHandler:
 
 
     def apply_bounds(self, reaction_id : str, lower_bound: float, upper_bound : float) -> bool:
+        '''
+        Edit the boundary of the specified reaction.
+        This function is called by the edit_model_by_query_str() internally.
+        '''
         assert self.model != None
         ret_flag = False
         if self.model.reactions.has_id(reaction_id):
@@ -166,6 +202,10 @@ class ModelHandler:
         return ret_flag
             
     def apply_knockout(self, reaction_id: str) -> bool :
+        '''
+        Knockout specified reaction.
+        This function is called by the edit_model_by_query_str() internally.
+        '''
         assert self.model != None
         ret_flag = False
         if self.model.reactions.has_id(reaction_id):
@@ -175,6 +215,9 @@ class ModelHandler:
         return ret_flag
 
     def edit_model_by_query_str(self, commands: str = None) -> int:
+        '''
+        Process and apply the commands.
+        '''
         if commands == None:
             commands = []
         else:
@@ -211,6 +254,9 @@ class ModelHandler:
         return self.num_applied_modification()
 
     def solve(self):
+        """
+        Execute the flux balance analysis.
+        """
         assert self.model != None
         with self.model:
             solution = self.model.optimize()
@@ -222,6 +268,9 @@ class ModelHandler:
         return data
 
     def num_applied_modification(self) -> int:
+        '''
+        returns the number of the applied modifications.
+        '''
         return self.num_modified
 
 def open_model(model_name: str, view_path: Optional[str] = None):
@@ -243,6 +292,7 @@ def open_model(model_name: str, view_path: Optional[str] = None):
     else:   # Error
         model_handler = None
     return model_handler
+
 
 @app.get("/list_models")
 def list_models():
@@ -356,8 +406,6 @@ def save_model(new_model_name: str, base_model_name: str, modification: str = Qu
     if modification != None:
         model_handler.edit_model_by_query_str(modification)
     
-    #outfile_basename = f"{base_model_name}_{make_time_string()}"
-    #outfile_path = f"user_defined_model/{outfile_basename}.yaml"      
     outfile_path = f"user_defined_model/{new_model_name}.yaml"
     model_handler.save_user_model(outfile_path, author, description)
     models_views.register_model(new_model_name, outfile_path, author)
