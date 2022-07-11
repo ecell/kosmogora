@@ -69,40 +69,40 @@ def test_call_solve2():
     assert response.status_code == 200
 
 def test_call_solve2_with_modification():
-    response = client.get('/solve2/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
+    response = client.get('/solve2/iJO1366?modification=bound%23DHPPD%230.01%230.5,bound%23DHPPD%23-0.01%230.2,knockout%23DHAtex')
     assert "fluxes" in response.json()
     assert "objective_value" in response.json()
     assert response.status_code == 200
 
 def test_call_solve2_user_defined_model():
-    response = client.get('/save_model/iJO1366_mod1/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex&author=Newton Laphthon')
+    response = client.get('/save_model/iJO1366_mod1/iJO1366?modification=bound%23DHPPD%230.01%230.5,bound%23DHPPD%23-0.01%230.2,knockout%23DHAtex&author=Newton Laphthon')
     filename = response.json()
     filename = "iJO1366_mod1"
     response2 = client.get(f'/solve2/{filename}')
     assert response2.status_code == 200
 
-    ref = client.get('/solve2/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
+    ref = client.get('/solve2/iJO1366?modification=bound%23DHPPD%230.01%230.5,bound%23DHPPD%23-0.01%230.2,knockout%23DHAtex')
     assert ref.json()["objective_value"] == response2.json()["objective_value"]
     
 def test_call_solve2_user_defined_model_and_modification():
-    response = client.get('/save_model/iJO1366_mod2/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2&author=Newton Laphthon')
+    response = client.get('/save_model/iJO1366_mod2/iJO1366?modification=bound%23DHPPD%230.01%230.5,bound%23DHPPD%23-0.01%230.2&author=Newton Laphthon')
     filename = response.json()
-    response2 = client.get(f'/solve2/{filename}?modification=knockout_DHAtex')
+    response2 = client.get(f'/solve2/{filename}?modification=knockout%23DHAtex')
     assert response2.status_code == 200
 
-    ref = client.get('/solve2/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2,knockout_DHAtex')
+    ref = client.get('/solve2/iJO1366?modification=bound%23DHPPD%230.01%230.5,bound%23DHPPD%23-0.01%230.2,knockout%23DHAtex')
     assert ref.json()["objective_value"] == response2.json()["objective_value"]
 
 def test_save_model_update():
-    response = client.get('/save_model/iJO1366_mod3/iJO1366?modification=bound_DHPPD_0.01_0.5,bound_DHPPD_-0.01_0.2&author=Newton Laphthon')
+    response = client.get('/save_model/iJO1366_mod3/iJO1366?modification=bound%23DHPPD%230.01%230.5,bound%23DHPPD%23-0.01%230.2&author=Newton Laphthon')
     filename = response.json()
-    response2 = client.get(f'/save_model/iJO1366_mod4/iJO1366_mod3?modification=knockout_DHAtex&author=Tonny')
+    response2 = client.get(f'/save_model/iJO1366_mod4/iJO1366_mod3?modification=knockout%23DHAtex&author=Tonny')
     assert response2.status_code == 200
-    response3 = client.get(f'/save_model/iJO1366_mod4/iJO1366_mod5?modification=knockout_DHAtex&author=Tonny')
+    response3 = client.get(f'/save_model/iJO1366_mod4/iJO1366_mod5?modification=knockout%23DHAtex&author=Tonny')
     assert response3.status_code == 404
 
 def test_specify_reaction_by_view():
-    ref = client.get('/solve2/iJO1366?modification=bound_31_0.01_0.5,bound_32_-0.01_0.2&view_name=iJO1366')
-    response = client.get('/save_model/iJO1366_mod6/iJO1366?modification=bound_31_0.01_0.5,bound_32_-0.01_0.2&author=Newton Laphthon&view_name=iJO1366')
+    ref = client.get('/solve2/iJO1366?modification=bound%2331%230.01%230.5,bound%2332%23-0.01%230.2&view_name=iJO1366')
+    response = client.get('/save_model/iJO1366_mod6/iJO1366?modification=bound%2331%230.01%230.5,bound%2332%23-0.01%230.2&author=Newton Laphthon&view_name=iJO1366')
     ref2 = client.get('/solve2/iJO1366_mod6')
     assert ref.json()["objective_value"] == ref2.json()["objective_value"]

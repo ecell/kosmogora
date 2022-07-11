@@ -225,7 +225,8 @@ class ModelHandler:
             
         print(commands)
         for cmd in commands:
-            cmd = cmd.split('_')
+            cmd = cmd.split('#')
+            print(cmd)
             if cmd[0] == "bound":
                 assert len(cmd) == 4
                 reaction_id = cmd[1]
