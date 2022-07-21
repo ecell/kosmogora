@@ -148,7 +148,6 @@ def save_model(new_model_name: str, base_model_name: str, modification: str = Qu
     if view_name != None:
         if view_name in models_views.views_of_model(base_model_name):
             view_path = models_views.view_property(view_name)["path"]
-        #view_path = f'./models/{view_name}.cyjs'
     model_handler = open_model(base_model_name, view_path)
     if not isinstance(model_handler, ModelHandler):
         raise HTTPException(status_code=404, detail="Model not found")
@@ -198,15 +197,3 @@ def get_user_modification(user_model_name: str):
             return yaml.safe_load(file)
     else:
         raise HTTPException(status_code=404, detail="Model not found")
-
-# @app.get("/hello")
-# def hello():
-#    return {"Hello": "World!"}
-# 
-# @app.post("/users/{name}")
-# def create_user(name: str, age: int = Query(None), body: dict = Body(None)):
-#     return {
-#         "age": age,
-#         "name": name,
-#         "country": body["country"],
-#     }
