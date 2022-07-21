@@ -41,7 +41,7 @@ def test_call_view():
 def test_call_view_property():
     response = client.get('/get_view_property/sample1')
     assert response.status_code == 200
-    assert response.json() == {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi" }
+    assert response.json() == {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi", "path": "./models/sample1.cyjs" }
 
 
 
