@@ -1,0 +1,101 @@
+from typing import Optional
+from datetime import datetime
+import yaml
+import os
+
+BaseModelList = "./manager/base_model_list.yaml"
+ViewList = "./manager/view_list.yaml"
+UserModificationList = "./manager/modifications_list.yaml"
+
+ModelRootKey = "models"
+ViewRootKey = "views"
+UserModelRootKey = "user_models"
+
+class ModelViewManager:
+    def __init__(self):
+        self.base_model_set = self.load_yaml(BaseModelList)[ModelRootKey]
+        self.view_set = self.load_yaml(ViewList)[ViewRootKey]
+        self.user_model_set = self.load_yaml(UserModificationList)[UserModelRootKey]
+        pass
+
+    def load_yaml(self, filename: str):
+        with open(filename) as file:
+            ret = yaml.safe_load(file)
+        return ret
+    
+    def list_models(self):
+        return list(self.base_model_set.keys() )
+
+    def model_property(self, model_name : str):
+        if model_name in self.base_model_set:
+            return self.base_model_set[model_name]
+        else:
+            return None
+
+    def list_views(self, model_name : Optional[str] = None):
+        if model_name != None:
+            ret = []
+            for name, property in self.view_set.items():
+                if property["model"] == model_name:
+                    ret.append(name)
+            return ret
+        else:
+            return list(self.view_set.keys() )
+
+    def view_property(self, view_name: str):
+        if view_name in self.view_set:
+            return self.view_set[view_name]
+        else:
+            return None
+
+    #XXX  Should be filtered by the base or parent model.
+    def list_user_models(self): 
+        return ( list(self.user_model_set.keys()) )
+
+    def register_model(self, user_model_name : str, user_model_path : str, 
+        base_model : str, parent_model_path : Optional[str] = None):
+        date_str = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
+        meta_data = {
+            "user_model_path" : user_model_path,
+            "base_model" : base_model,
+            "parent_model_path" : parent_model_path,
+            "date" : date_str
+        }
+        self.user_model_set[user_model_name] = meta_data
+        print("ok save")
+        with open(UserModificationList, "w") as file:
+            yaml.dump( {UserModelRootKey: self.user_model_set}, file )
+
+def initialize():
+    if not os.path.exists("./manager/"):
+        os.mkdir("./manager/")
+
+    model_set = {
+            'sample1' : {"database_type" : "kegg", "default_view" : "sample1", "version" : "1.0.0", "organ" : "EColi", "path": "./models/sample1.xml" },
+            'iJO1366' : {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi", "path": "./models/iJO1366.xml" }
+    }
+    view_set = {
+            "sample1" : {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi", "path": "./models/sample1.cyjs" },
+            "iJO1366" : {"database_type" : "bigg", "model" : "iJO1366", "version" : "1.0.0", "organ" : "EColi", "path": "./models/iJO1366.cyjs" }
+    }
+    if not os.path.isfile(BaseModelList):
+        with open(BaseModelList, "w") as file:
+                yaml.dump({ModelRootKey : model_set}, file)
+
+    if not os.path.isfile(ViewList):
+        with open(ViewList, "w") as file:
+                yaml.dump({ViewRootKey : view_set}, file)
+
+    if not os.path.isfile(UserModificationList):
+        with open(UserModificationList, "w") as file:
+                yaml.dump({UserModelRootKey: {}}, file)
+    else:
+        pass
+
+if __name__ == '__main__':
+    initialize()
+    manager = ModelViewManager()
+    print(manager.list_models() )
+    print(manager.list_views() )
+    print(manager.list_views("iJO1366"))
+    print(manager.model_property("iJO1366"))

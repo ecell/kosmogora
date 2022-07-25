@@ -36,13 +36,14 @@ class ModelHandler2:
 
     def save_user_model(self, user_model_path : str):
         import yaml
-        import datetime
+        from datetime import datetime
         if self.author == None:
             raise "Author is required. Please set the author by calling set_author()"
         if len(self.new_modifications) == 0:
             raise "There are no new modification!"
-        now = datetime.datetime.now()
-        date_str = '{:%Y%m%d%H%M}'.format(now)
+        #now = datetime.datetime.now()
+        #date_str = '{:%Y%m%d%H%M}'.format(now)
+        date_str = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
         temp_modification = {
             "author" : self.author,
             "commands" : self.new_modifications,
@@ -110,6 +111,8 @@ class ModelHandler2:
 
 if __name__ == '__main__':
     mh = ModelHandler2("iJO1366", "./models/iJO1366.xml")
+    # Originally, this function should by called by user.
+    # This function should be called internally in load_user_model()
     mh.add_modification_set({
         "author": "sakamoto", 
         "commands" : [
