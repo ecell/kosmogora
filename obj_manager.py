@@ -48,15 +48,41 @@ class ModelViewManager:
         else:
             return None
 
-    #XXX  Should be filtered by the base or parent model.
-    def list_user_models(self): 
-        return ( list(self.user_model_set.keys()) )
+    def list_user_models(self, base_model_name : Optional[str] = None): 
+        if base_model_name != None:
+            ret = []
+            for name, property in self.user_model_set.items():
+                if property["base_model"] == base_model_name:
+                    ret.append(name)
+            return ret
+        else:
+            return ( list(self.user_model_set.keys()) )
+
+    def user_model_property(self, user_model_name : str):
+        if user_model_name in self.user_model_set:
+            return self.user_model_set[user_model_name]
+        else:
+            return None
+
+
+    def check_model_type(self, model_name : str):
+        '''
+        check the given model_name  is weather registere_model or user_model.
+        return value:
+            "base_model", "user_model", None (not exist)
+        '''
+        if model_name in self.base_model_set:
+            return "base_model"
+        elif model_name in self.user_model_set:
+            return "user_model"
+        else:
+            return None
 
     def register_model(self, user_model_name : str, user_model_path : str, 
         base_model : str, parent_model_path : Optional[str] = None):
         date_str = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
         meta_data = {
-            "user_model_path" : user_model_path,
+            "path" : user_model_path,
             "base_model" : base_model,
             "parent_model_path" : parent_model_path,
             "date" : date_str
@@ -98,4 +124,8 @@ if __name__ == '__main__':
     print(manager.list_models() )
     print(manager.list_views() )
     print(manager.list_views("iJO1366"))
+    print(manager.list_user_models("iJO1366"))
     print(manager.model_property("iJO1366"))
+    print(manager.check_model_type("iJO1366"))
+    print(manager.check_model_type("test23"))
+    print(manager.check_model_type("test33"))

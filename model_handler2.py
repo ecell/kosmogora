@@ -19,6 +19,10 @@ class ModelHandler2:
         self.base_model_name = base_model_name 
         self.base_model_path = base_model_path
 
+    def get_base_model_name(self) -> str:
+        assert self.base_model_name != None 
+        return self.base_model_name 
+
     def add_modification_command(self, command : List[str]):
         self.new_modifications.append(command)
     
@@ -41,8 +45,6 @@ class ModelHandler2:
             raise "Author is required. Please set the author by calling set_author()"
         if len(self.new_modifications) == 0:
             raise "There are no new modification!"
-        #now = datetime.datetime.now()
-        #date_str = '{:%Y%m%d%H%M}'.format(now)
         date_str = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
         temp_modification = {
             "author" : self.author,
@@ -53,6 +55,7 @@ class ModelHandler2:
         data = {
             "base_model_name" : self.base_model_name,
             "base_model_path" : self.base_model_path,
+            "model_name" : self.model_name,
             "modification_list" : self.modification_list
         }
         with open(user_model_path, "w") as file:
@@ -66,12 +69,14 @@ class ModelHandler2:
             user_defined_data = yaml.safe_load(file)
         assert "base_model_path" in user_defined_data
         assert "base_model_name" in user_defined_data 
+        assert "model_name" in user_defined_data
         assert "modification_list" in user_defined_data
         self.base_model_name = user_defined_data["base_model_name"]
         self.base_model_path = user_defined_data["base_model_path"]
         self.modification_list = user_defined_data["modification_list"]
+        self.model_name = user_defined_data["model_name"]
 
-    def apply_modification(self, modification_commands):
+    def _apply_modification(self, modification_commands):
         if self.model == None:
             raise
 
@@ -87,7 +92,8 @@ class ModelHandler2:
                 if self.model.reactions.has_id(reaction_id):
                     self.model.reactions.get_by_id(reaction_id).bounds = (lower_bound, upper_bound)
             else:
-                raise "Unknown command"
+                #raise "Unknown command"
+                pass
         
     def do_FBA(self):
         # First, load the original model
@@ -95,10 +101,10 @@ class ModelHandler2:
 
         # second, apply the previously defined commands.
         for modification in self.modification_list:
-            self.apply_modification(modification["commands"])
+            self._apply_modification(modification["commands"])
         
         # Third, apply the current commands
-        self.apply_modification(self.new_modifications)
+        self._apply_modification(self.new_modifications)
 
         with self.model:
             solution = self.model.optimize()
@@ -112,7 +118,7 @@ class ModelHandler2:
 if __name__ == '__main__':
     mh = ModelHandler2("iJO1366", "./models/iJO1366.xml")
     # Originally, this function should by called by user.
-    # This function should be called internally in load_user_model()
+    # This function should be called internally in load_user_model().(NOT called directry by users.)
     mh.add_modification_set({
         "author": "sakamoto", 
         "commands" : [
@@ -125,6 +131,7 @@ if __name__ == '__main__':
     mh.add_modification_command(["knockout", "DHAtex"])
     print("hoger")
     mh.set_author("James")
+    mh.set_model_name("testtest")
     mh.save_user_model("test222.yaml")
     
     mh2 = ModelHandler2()
