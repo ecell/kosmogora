@@ -3,9 +3,16 @@ from datetime import datetime
 import yaml
 import os
 
-BaseModelList = "./manager/base_model_list.yaml"
-ViewList = "./manager/view_list.yaml"
-UserModificationList = "./manager/modifications_list.yaml"
+DataDir = "./data2/"
+MetaInfoDir = "./manager2/"
+
+#BaseModelList = "./manager/base_model_list.yaml"
+#ViewList = "./manager/view_list.yaml"
+#UserModificationList = "./manager/modifications_list.yaml"
+
+BaseModelList = os.path.join(MetaInfoDir, "base_model_list.yaml")
+ViewList = os.path.join(MetaInfoDir, "view_list.yaml")
+UserModificationList = os.path.join(MetaInfoDir, "modifications_list.yaml")
 
 ModelRootKey = "models"
 ViewRootKey = "views"
@@ -93,8 +100,10 @@ class ModelViewManager:
             yaml.dump( {UserModelRootKey: self.user_model_set}, file )
 
 def initialize():
-    if not os.path.exists("./manager/"):
-        os.mkdir("./manager/")
+    if not os.path.exists(MetaInfoDir):
+        os.mkdir(MetaInfoDir)
+    if not os.path.exists(DataDir):
+        os.mkdir(DataDir)
 
     model_set = {
             'sample1' : {"database_type" : "kegg", "default_view" : "sample1", "version" : "1.0.0", "organ" : "EColi", "path": "./models/sample1.xml" },
@@ -118,13 +127,18 @@ def initialize():
     else:
         pass
 
+def _cleanup():
+    import shutil
+    shutil.rmtree(MetaInfoDir)
+
+
 if __name__ == '__main__':
     initialize()
     manager = ModelViewManager()
-    print(manager.list_models() )
-    print(manager.list_views() )
-    print(manager.list_views("iJO1366"))
-    print(manager.list_user_models("iJO1366"))
+    print(manager.list_models() )   # => ['iJO1366', 'sample1']
+    print(manager.list_views() )    # => ['iJO1366', 'sample1']
+    print(manager.list_views("iJO1366"))    # => ['iJO1366']
+    print(manager.list_user_models("iJO1366")) # => []
     print(manager.model_property("iJO1366"))
     print(manager.check_model_type("iJO1366"))
     print(manager.check_model_type("test23"))
