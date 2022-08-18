@@ -202,7 +202,7 @@ def save2(model_name: str, commands: str, author: str, new_model_name: str, view
             model_handler.add_modification_command(cmd)
     
     new_model_file_basename = "{}.yaml".format(new_model_name)
-    new_model_file_path = os.path.join(DataDir, new_model_name )
+    new_model_file_path = os.path.join(DataDir, new_model_file_basename )
     model_handler.set_author(author)
     model_handler.set_model_name(new_model_name)
     model_handler.save_user_model(new_model_file_path)
