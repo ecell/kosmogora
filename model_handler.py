@@ -102,6 +102,7 @@ class ModelHandler:
 
         # second, apply the previously defined commands.
         for modification in self.modification_list:
+            print(modification)
             self._apply_modification(modification["commands"])
         
         # Third, apply the current commands

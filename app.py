@@ -100,6 +100,9 @@ def process_command(commands : str, edgeID_to_rxnID = None):
     command_decoded = urllib.parse.unquote_to_bytes(commands).decode()
     ret = []
     for command_str in command_decoded.split(COMMAND_DELIMITER):
+        if command_str == '':
+            print("warn: empty command{}".format(command_str))
+            continue
         command = command_str.split(ARGUMENT_DELIMITER)
         if edgeID_to_rxnID != None:
             if command[0] == 'knockout' or command[0] == 'bound':
