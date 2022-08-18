@@ -129,8 +129,10 @@ def initialize():
 
 def _cleanup():
     import shutil
-    shutil.rmtree(MetaInfoDir)
-    shutil.rmtree(DataDir)
+    if not os.path.exists(MetaInfoDir):
+        shutil.rmtree(MetaInfoDir)
+    if not os.path.exists(DataDir):
+        shutil.rmtree(DataDir)
 
 
 if __name__ == '__main__':
