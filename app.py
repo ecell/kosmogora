@@ -75,9 +75,22 @@ def get_view_property(view_name: str):
 @app.get("/list_user_model/", responses={404: {'description': 'Model not found'}})
 def list_user_modification_models(base_model_name: str = Query(None) ):
     if base_model_name != None and base_model_name not in object_manager.list_models():
-            raise HTTPException(status_code=404, detail="Model not found")
+        raise HTTPException(status_code=404, detail="Model not found")
     user_model_list = object_manager.list_user_models(base_model_name)
     return {"user_models" : user_model_list}
+
+@app.get("/open_user_model/{user_model_name}", responses={404: {'description': 'user_model not found'}})
+def open_user_modification_models(user_model_name: str):
+    """ """
+    import yaml 
+    if user_model_name not in object_manager.list_user_models():
+        raise HTTPException(status_code=404, detail="UserModel not found")
+    user_model_path = object_manager.user_model_property(user_model_name)['path']
+    data = None
+    with open(user_model_path, 'r') as f:
+        data = yaml.safe_load(f)
+    return data
+
 
 def generate_edgeID_to_rxnID_map(view_name: str):
     """ convert reactions specified the edgeID to its original name """
