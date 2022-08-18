@@ -27,5 +27,7 @@ $ uvicorn --host [your ip address] --port 8000 app:app
 
 Open your browser at `http://[your ip address]:8000/docs`.
 
+![docs](./image/docs_image.png)
+
 See more about FastAPI here: https://fastapi.tiangolo.com/
 
