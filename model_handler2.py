@@ -117,8 +117,8 @@ class ModelHandler2:
 
 if __name__ == '__main__':
     mh = ModelHandler2("iJO1366", "./models/iJO1366.xml")
-    # Originally, this function should by called by user.
-    # This function should be called internally in load_user_model().(NOT called directry by users.)
+    # Originally, this function should NOT be called by user.
+    # This function should be called internally in load_user_model().(NOT called by users directory.)
     mh.add_modification_set({
         "author": "sakamoto", 
         "commands" : [
@@ -127,7 +127,6 @@ if __name__ == '__main__':
             ]} 
             )
     print(mh.get_modification_set() )
-    #print(mh.do_FBA() )
     mh.add_modification_command(["knockout", "DHAtex"])
     print("hoger")
     mh.set_author("James")
