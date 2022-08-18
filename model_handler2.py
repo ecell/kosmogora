@@ -87,10 +87,11 @@ class ModelHandler2:
                     self.model.reactions.get_by_id(reaction_id).knock_out()
             elif command[0] == "bound":
                 reaction_id = command[1]
-                lower_bound = command[2]
-                upper_bound = command[3]
+                lower_bound = float(command[2])
+                upper_bound = float(command[3])
                 if self.model.reactions.has_id(reaction_id):
                     self.model.reactions.get_by_id(reaction_id).bounds = (lower_bound, upper_bound)
+                print("apply: bound: {} {} {}".format(reaction_id, lower_bound, upper_bound))
             else:
                 #raise "Unknown command"
                 pass
