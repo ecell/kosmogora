@@ -1,5 +1,5 @@
 import obj_manager
-import model_handler2
+import model_handler
 
 if __name__ == '__main__':
     obj_manager.initialize()
@@ -9,7 +9,7 @@ if __name__ == '__main__':
     print(manager.list_views("iJO1366"))
     print(manager.model_property("iJO1366"))
 
-    mh = model_handler2.ModelHandler2()
+    mh = model_handler.ModelHandler()
     iJO1366_path = manager.model_property("iJO1366")["path"]
     mh.set_base_model("iJO1366", iJO1366_path)
     mh.do_FBA()
@@ -22,8 +22,7 @@ if __name__ == '__main__':
     mh.save_user_model("./data/test13.yaml")
     manager.register_model("test13", "./data/test13.yaml", "iJO1366")
 
-    mh2 = model_handler2.ModelHandler2() 
-    #mh2.load_user_model("./data/test13.yaml") 
+    mh2 = model_handler.ModelHandler() 
     print(manager.user_model_property("test13"))
     mh2.load_user_model(manager.user_model_property("test13")["path"]) 
     mh2.set_author("Mike") 
@@ -34,7 +33,7 @@ if __name__ == '__main__':
     print(manager.list_views())
     print(manager.list_views("iJO1366"))
 
-    mh_sample = model_handler2.ModelHandler2()
+    mh_sample = model_handler.ModelHandler2()
     sample1_path = manager.model_property("sample1")["path"]
     mh_sample.set_base_model("sample1", sample1_path)
     print(mh_sample.do_FBA() )
