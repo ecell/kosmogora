@@ -175,9 +175,10 @@ def save(model_name: str, commands: str, author: str, new_model_name: str, view_
     view_name: If reactions in commands are specified by the edgeID of the view, specify the view.
     """
 
-    print(new_model_name)
     if len(commands) == 0 or len(author) == 0:
-        raise 
+        raise HTTPException(status_code=500, detail='Both the commands and author must be specified')
+    if new_model_name in object_manager.list_user_models():
+        raise HTTPException(status_code=500, detail='The name {new_model_name} already exists'.format(new_model_name))
 
     # First, Check the requested model either base_model or user_model
     model_type = object_manager.check_model_type(model_name)
