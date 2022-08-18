@@ -10,14 +10,13 @@ $ conda activate answer_talker
 Install libraries:
 
 ```
-$ conda install -c conda-forge fastapi uvicorn cobra
+$ conda install -c conda-forge fastapi uvicorn cobra pyyaml
 ```
 
-Preparation before launch the server
+Initialization before launch the server
 
 ```
-$ mkdir data
-$ python default.py
+$ python obj_manager.py -c
 ```
 
 Run the server with:
@@ -29,3 +28,4 @@ $ uvicorn --host [your ip address] --port 8000 app:app
 Open your browser at `http://[your ip address]:8000/docs`.
 
 See more about FastAPI here: https://fastapi.tiangolo.com/
+

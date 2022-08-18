@@ -1,146 +1,112 @@
 import json
-import cobra.io 
-from typing import Optional
+import cobra.io
+from typing import Optional, List, Dict
 
 class ModelHandler:
-    '''
-    This class manages to do the FBA and modify the models.
-    '''
-    def __init__(self, base_filename : Optional[str] = None, view_path : Optional[str] = None ):
-        self.base_filename = base_filename
-        self.applied_commands = []
-        self.num_modified = 0   # the number of the applied modification
+    def __init__(self, base_model_name : Optional[str] = None, base_model_path: Optional[str] = None):
+        self.base_model_name = base_model_name
+        self.base_model_path = base_model_path
+        self.model_path = None  # The file of this pass is user_model.
+        self.model_name = None
         self.model = None
 
-        self.view_path = view_path
-        self.rxn_specified_by_viewid = False
+        self.modification_list = [] # Modifications, defined in the defined by users previously.
+        self.new_modifications = []
+        self.author = None
+        pass
 
-        if base_filename != None:
-            self.load_model(base_filename)
+    def set_base_model(self, base_model_name : str, base_model_path : str):
+        self.base_model_name = base_model_name 
+        self.base_model_path = base_model_path
 
-        if view_path != None:
-            self.set_view_file(view_path)
+    def get_base_model_name(self) -> str:
+        assert self.base_model_name != None 
+        return self.base_model_name 
 
-    def load_model(self, base_filename: str) -> None:
-        self.base_filename = base_filename
-        self.model = cobra.io.read_sbml_model(base_filename)
-
-    def set_view_file(self, view_path: str) -> None:
-        # Generate table that relate the edge_id to reaction_id defined in database.
-        self.view_path = view_path
-        self.edgeID_to_rxnID = {}
-        with open(self.view_path, 'r') as f:
-            view = json.load(f)
-            for edge in view["elements"]["edges"]:
-                edge_id = edge["data"]["id"]
-                rxn_id = edge["data"]["bigg_id"]
-                self.edgeID_to_rxnID[edge_id] = rxn_id
-        self.rxn_specified_by_viewid = True
-
-    def load_user_model(self, usermodel_path: str) -> None :
-        '''
-        Load and apply the modification defined by users, which is based on the pre-defined model.
-        '''
-        import yaml 
-        user_defined_data = dict()
-        with open(usermodel_path) as file:
-            user_defined_data = yaml.safe_load(file)
-
-        assert "base_model_path" in user_defined_data
-        assert "modification" in user_defined_data
-        if "view_path" in user_defined_data:
-            self.set_view_file(user_defined_data["view_path"])
-        self.load_model(user_defined_data["base_model_path"])
-        self.edit_model_by_query_str(user_defined_data["modification"])
+    def add_modification_command(self, command : List[str]):
+        self.new_modifications.append(command)
     
-    def save_user_model(self, outfile_path: str, author : str, description : str) -> None :
-        '''
-        Save the modifications defined by the users.
-        '''
+    def add_modification_set(self, modification : Dict ):
+        self.modification_list.append(modification)
+    
+    def get_modification_set(self):
+        return self.modification_list
+    
+    def set_author(self, author_name : str):
+        self.author = author_name
+    
+    def set_model_name(self, model_name : str):
+        self.model_name = model_name
+
+    def save_user_model(self, user_model_path : str):
         import yaml
+        from datetime import datetime
+        if self.author == None:
+            raise "Author is required. Please set the author by calling set_author()"
+        if len(self.new_modifications) == 0:
+            raise "There are no new modification!"
+        date_str = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
+        temp_modification = {
+            "author" : self.author,
+            "commands" : self.new_modifications,
+            "date" : date_str
+        }
+        self.modification_list.append(temp_modification)
         data = {
-            "base_model_path" : self.base_filename,
-            "modification" : ','.join(self.applied_commands) ,
-            "author" : author,
-            "description" : description
-        }   
-        if self.rxn_specified_by_viewid == True:
-            data["view_path"] = self.view_path
-        with open(outfile_path, "w") as file:
+            "base_model_name" : self.base_model_name,
+            "base_model_path" : self.base_model_path,
+            "model_name" : self.model_name,
+            "modification_list" : self.modification_list
+        }
+        with open(user_model_path, "w") as file:
             yaml.dump(data, file)
 
+    def load_user_model(self, user_model_path : str):
+        self.model_path = user_model_path
+        import yaml 
+        user_defined_data = dict()
+        with open(user_model_path) as file:
+            user_defined_data = yaml.safe_load(file)
+        assert "base_model_path" in user_defined_data
+        assert "base_model_name" in user_defined_data 
+        assert "model_name" in user_defined_data
+        assert "modification_list" in user_defined_data
+        self.base_model_name = user_defined_data["base_model_name"]
+        self.base_model_path = user_defined_data["base_model_path"]
+        self.modification_list = user_defined_data["modification_list"]
+        self.model_name = user_defined_data["model_name"]
 
-    def apply_bounds(self, reaction_id : str, lower_bound: float, upper_bound : float) -> bool:
-        '''
-        Edit the boundary of the specified reaction.
-        This function is called by the edit_model_by_query_str() internally.
-        '''
-        assert self.model != None
-        ret_flag = False
-        if self.model.reactions.has_id(reaction_id):
-            self.model.reactions.get_by_id(reaction_id).bounds = (lower_bound, upper_bound)
-            self.num_modified += 1
-            ret_flag = True 
-        return ret_flag
-            
-    def apply_knockout(self, reaction_id: str) -> bool :
-        '''
-        Knockout specified reaction.
-        This function is called by the edit_model_by_query_str() internally.
-        '''
-        assert self.model != None
-        ret_flag = False
-        if self.model.reactions.has_id(reaction_id):
-            self.model.reactions.get_by_id(reaction_id).knock_out()
-            self.num_modified += 1
-            ret_flag = True 
-        return ret_flag
+    def _apply_modification(self, modification_commands):
+        if self.model == None:
+            raise
 
-    def edit_model_by_query_str(self, commands: str = None) -> int:
-        '''
-        Process and apply the commands.
-        '''
-        if commands == None:
-            commands = []
-        else:
-            commands = commands.split(',')
-            
-        print(commands)
-        for cmd in commands:
-            cmd = cmd.split('#')
-            print(cmd)
-            if cmd[0] == "bound":
-                assert len(cmd) == 4
-                reaction_id = cmd[1]
-                if self.rxn_specified_by_viewid == True:
-                    reaction_id = self.edgeID_to_rxnID[cmd[1]]
-                    print(f"boundary: rxn-id conversion: {cmd[1]} => {reaction_id}")           
+        for command in modification_commands:
+            if command[0] == "knockout":
+                reaction_id = command[1]
+                if self.model.reactions.has_id(reaction_id):
+                    self.model.reactions.get_by_id(reaction_id).knock_out()
+            elif command[0] == "bound":
+                reaction_id = command[1]
+                lower_bound = float(command[2])
+                upper_bound = float(command[3])
+                if self.model.reactions.has_id(reaction_id):
+                    self.model.reactions.get_by_id(reaction_id).bounds = (lower_bound, upper_bound)
+                print("apply: bound: {} {} {}".format(reaction_id, lower_bound, upper_bound))
+            else:
+                #raise "Unknown command"
+                pass
+        
+    def do_FBA(self):
+        # First, load the original model
+        self.model = cobra.io.read_sbml_model(self.base_model_path)
 
-                lower_bound, upper_bound = float(cmd[2]), float(cmd[3])
-                result = self.apply_bounds(reaction_id, lower_bound, upper_bound)
-                if result != True:
-                    raise Exception("apply bound failure")
+        # second, apply the previously defined commands.
+        for modification in self.modification_list:
+            self._apply_modification(modification["commands"])
+        
+        # Third, apply the current commands
+        self._apply_modification(self.new_modifications)
 
-            elif cmd[0] == "knockout":
-                assert len(cmd) == 2
-                reaction_id = cmd[1]
-
-                if self.rxn_specified_by_viewid == True:
-                    reaction_id = self.edgeID_to_rxnID[cmd[1]]
-                    print(f"knockout: rxn-id conversion: {cmd[1]} => {reaction_id}")           
-
-                result = self.apply_knockout(reaction_id)
-                if result != True:
-                    raise Exception("apply knockout failure")
-        self.applied_commands += commands    
-
-        return self.num_applied_modification()
-
-    def solve(self):
-        """
-        Execute the flux balance analysis.
-        """
-        assert self.model != None
         with self.model:
             solution = self.model.optimize()
 
@@ -150,8 +116,26 @@ class ModelHandler:
 
         return data
 
-    def num_applied_modification(self) -> int:
-        '''
-        returns the number of the applied modifications.
-        '''
-        return self.num_modified
+if __name__ == '__main__':
+    mh = ModelHandler("iJO1366", "./models/iJO1366.xml")
+    # Originally, this function should NOT be called by user.
+    # This function should be called internally in load_user_model().(NOT called by users directory.)
+    mh.add_modification_set({
+        "author": "sakamoto", 
+        "commands" : [
+            ["bound", "DHPPD", 0.01, 0.5], 
+            ["knockout", "DHAtex"]
+            ]} 
+            )
+    print(mh.get_modification_set() )
+    mh.add_modification_command(["knockout", "DHAtex"])
+    print("hoger")
+    mh.set_author("James")
+    mh.set_model_name("testtest")
+    mh.save_user_model("test222.yaml")
+    
+    mh2 = ModelHandler()
+    mh2.load_user_model("test222.yaml")
+    print(mh2.get_modification_set())
+    #print(mh2.do_FBA())
+    pass
