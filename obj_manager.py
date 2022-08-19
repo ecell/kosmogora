@@ -86,12 +86,12 @@ class ModelViewManager:
             return None
 
     def register_model(self, user_model_name : str, user_model_path : str, 
-        base_model : str, parent_model_path : Optional[str] = None):
+        base_model : str, parent_model: Optional[str] = None):
         date_str = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
         meta_data = {
             "path" : user_model_path,
             "base_model" : base_model,
-            "parent_model_path" : parent_model_path,
+            "parent_model" : parent_model,
             "date" : date_str
         }
         self.user_model_set[user_model_name] = meta_data
@@ -129,9 +129,9 @@ def initialize():
 
 def _cleanup():
     import shutil
-    if not os.path.exists(MetaInfoDir):
+    if os.path.exists(MetaInfoDir):
         shutil.rmtree(MetaInfoDir)
-    if not os.path.exists(DataDir):
+    if os.path.exists(DataDir):
         shutil.rmtree(DataDir)
 
 
