@@ -33,6 +33,15 @@ class ModelViewManager:
     def list_models(self):
         return list(self.base_model_set.keys() )
 
+    def get_user_model_tree(self):
+        tree = {}
+        for model_name, model_property in self.user_model_set.items():
+            parent_model = model_property["parent_model"]
+            if not parent_model in tree:
+                tree[parent_model] = set()
+            tree[parent_model].add(model_name)
+        return tree
+
     def model_property(self, model_name : str):
         if model_name in self.base_model_set:
             return self.base_model_set[model_name]
@@ -86,7 +95,7 @@ class ModelViewManager:
             return None
 
     def register_model(self, user_model_name : str, user_model_path : str, 
-        base_model : str, parent_model: Optional[str] = None):
+        base_model : str, parent_model: str):
         date_str = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
         meta_data = {
             "path" : user_model_path,

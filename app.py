@@ -18,6 +18,10 @@ def list_models():
     model_list = object_manager.list_models()
     return {"models": model_list}
 
+@app.get("/user_model_tree")
+def user_model_tree():
+    tree = object_manager.get_user_model_tree()
+    return {"tree": tree}
 
 @app.get("/list_views/", responses={404: {'description': 'Model not found'}})
 def list_views(model_name: str = Query(None) ):
@@ -223,7 +227,7 @@ def save(model_name: str, commands: str, author: str, new_model_name: str, view_
     model_handler.set_author(author)
     model_handler.set_model_name(new_model_name)
     model_handler.save_user_model(new_model_file_path)
-    object_manager.register_model(new_model_name, new_model_file_path, model_handler.get_base_model_name() )
+    object_manager.register_model(new_model_name, new_model_file_path, model_handler.get_base_model_name(), model_name )
     return {"new_model_name" : new_model_name}
 
 
