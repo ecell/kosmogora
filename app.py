@@ -111,6 +111,12 @@ def generate_edgeID_to_rxnID_map(view_name: str):
             edgeID_to_rxnID[edge_id] = rxn_id
     return edgeID_to_rxnID
 
+def get_specified_view_path(view_name: str):
+    if view_name not in object_manager.list_views(view_name):
+        raise HTTPException(status_code=404, detail="View not found")
+    view_path = object_manager.view_property(view_name)["path"]
+    return view_path
+
 def process_command(commands : str, edgeID_to_rxnID = None):
     """ process command given by the user """
     import urllib.parse
@@ -146,11 +152,6 @@ def solve(model_name: str, commands : str = Query(None), view_name : str = Query
     # First, Check the requested model either base_model or user_model
     model_type = object_manager.check_model_type(model_name)
 
-    # if the reactions in the argument 'commmands' are specified by the edgeID defined in the view,
-    # We have to generate the table.
-    edgeID_to_rxnID = None
-    if view_name != None:
-        edgeID_to_rxnID = generate_edgeID_to_rxnID_map(view_name)
 
     # Then, load the requested model.
     model_handler = ModelHandler() 
@@ -162,6 +163,14 @@ def solve(model_name: str, commands : str = Query(None), view_name : str = Query
         model_handler.load_user_model(model_path)
     else:
         raise HTTPException(status_code=404, detail="Model not found")
+
+    # if the reactions in the argument 'commmands' are specified by the edgeID defined in the view,
+    # We have to generate the table.
+    edgeID_to_rxnID = None
+    if view_name != None:
+        #edgeID_to_rxnID = generate_edgeID_to_rxnID_map(view_name)
+        edgeID_to_rxnID = None 
+        model_handler.set_id_type( get_specified_view_path(view_name) )
     
     # If the model-operation commands are submitted, apply the commands
     if commands != None:
@@ -200,12 +209,6 @@ def save(model_name: str, commands: str, author: str, new_model_name: str, view_
     # First, Check the requested model either base_model or user_model
     model_type = object_manager.check_model_type(model_name)
 
-    # if the reactions in the argument 'commmands' are specified by the edgeID defined in the view,
-    # We have to generate the table.
-    edgeID_to_rxnID = None
-    if view_name != None:
-        edgeID_to_rxnID = generate_edgeID_to_rxnID_map(view_name)
-
     # Then, load therequested model.
     model_handler = ModelHandler() 
     if model_type == "base_model" :
@@ -216,6 +219,14 @@ def save(model_name: str, commands: str, author: str, new_model_name: str, view_
         model_handler.load_user_model(model_path)
     else:
         raise HTTPException(status_code=404, detail="Model not found")
+
+    # if the reactions in the argument 'commmands' are specified by the edgeID defined in the view,
+    # We have to generate the table.
+    edgeID_to_rxnID = None
+    if view_name != None:
+        #edgeID_to_rxnID = generate_edgeID_to_rxnID_map(view_name)
+        edgeID_to_rxnID = None 
+        model_handler.set_id_type( get_specified_view_path(view_name) )
 
     if commands != None:
         command_processed = process_command(commands, edgeID_to_rxnID)

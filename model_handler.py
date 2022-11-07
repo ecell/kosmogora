@@ -13,6 +13,9 @@ class ModelHandler:
         self.modification_list = [] # Modifications, defined in the defined by users previously.
         self.new_modifications = []
         self.author = None
+        self.id_type = None
+
+        self.edgeID_to_rxnID_table = {}
         pass
 
     def set_base_model(self, base_model_name : str, base_model_path : str):
@@ -38,6 +41,12 @@ class ModelHandler:
     def set_model_name(self, model_name : str):
         self.model_name = model_name
 
+    def set_id_type(self, id_type: str):
+        # if id_type does not specified, it treats the reaction IDs as it is.
+        # (the IDs used in the base_model)
+        self.id_type = id_type  
+        print("id_type: {} registered.".format(id_type))
+
     def save_user_model(self, user_model_path : str):
         import yaml
         from datetime import datetime
@@ -49,7 +58,8 @@ class ModelHandler:
         temp_modification = {
             "author" : self.author,
             "commands" : self.new_modifications,
-            "date" : date_str
+            "date" : date_str,
+            "id_type" : self.id_type, 
         }
         self.modification_list.append(temp_modification)
         data = {
@@ -76,17 +86,25 @@ class ModelHandler:
         self.modification_list = user_defined_data["modification_list"]
         self.model_name = user_defined_data["model_name"]
 
-    def _apply_modification(self, modification_commands):
+    def _apply_modification(self, modification_commands, id_table = None):
         if self.model == None:
             raise
 
         for command in modification_commands:
             if command[0] == "knockout":
                 reaction_id = command[1]
+                if id_table != None:
+                    reaction_id = id_table[reaction_id]
+                    print("# {} -> {}".format(command[1], reaction_id) )
+
                 if self.model.reactions.has_id(reaction_id):
                     self.model.reactions.get_by_id(reaction_id).knock_out()
+
             elif command[0] == "bound":
                 reaction_id = command[1]
+                if id_table != None:
+                    reaction_id = id_table[reaction_id]
+                    print("# {} -> {}".format(command[1]), reaction_id)
                 lower_bound = float(command[2])
                 upper_bound = float(command[3])
                 if self.model.reactions.has_id(reaction_id):
@@ -102,11 +120,21 @@ class ModelHandler:
 
         # second, apply the previously defined commands.
         for modification in self.modification_list:
-            print(modification)
-            self._apply_modification(modification["commands"])
+
+            if "id_type" in modification and modification["id_type"] != None:
+                # If id_type is specified, convert the reaction ids to the bigg_id.
+                id_table = self.generate_edgeID_to_rxnID_map(modification["id_type"])
+                self._apply_modification(modification["commands"], id_table)
+            else:
+                self._apply_modification(modification["commands"])
+
         
         # Third, apply the current commands
-        self._apply_modification(self.new_modifications)
+        if self.id_type != None:
+            id_table = self.generate_edgeID_to_rxnID_map(self.id_type)
+            self._apply_modification(self.new_modifications, id_table)
+        else:
+            self._apply_modification(self.new_modifications)
 
         with self.model:
             solution = self.model.optimize()
@@ -116,6 +144,18 @@ class ModelHandler:
             'objective_value': solution.objective_value}
 
         return data
+
+    def generate_edgeID_to_rxnID_map(self, view_path: str):
+        """ convert reactions specified the edgeID to its original name """
+        import json
+        edgeID_to_rxnID ={}
+        with open(view_path, 'r') as f:
+            view = json.load(f)
+            for edge in view["elements"]["edges"]:
+                edge_id = edge["data"]["id"]
+                rxn_id = edge["data"]["bigg_id"]
+                edgeID_to_rxnID[edge_id] = rxn_id
+        return edgeID_to_rxnID
 
 if __name__ == '__main__':
     mh = ModelHandler("iJO1366", "./models/iJO1366.xml")
