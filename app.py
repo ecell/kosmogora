@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Response, Query, HTTPException
 from obj_manager import ModelViewManager, DataDir
 from model_handler import ModelHandler
+from typing import Tuple, List, Union
 import os
 
 class XMLResponse(Response):
@@ -240,5 +241,26 @@ def save(model_name: str, commands: str, author: str, new_model_name: str, view_
     model_handler.save_user_model(new_model_file_path)
     object_manager.register_model(new_model_name, new_model_file_path, model_handler.get_base_model_name(), model_name )
     return {"new_model_name" : new_model_name}
+
+@app.get("/save_query/{model_name}/{author}/{new_model_name}", responses={404: {'description': 'Model not found'}})
+def save_query(
+        model_name: str,
+        author: str, 
+        new_model_name: str, 
+        knockout : Union[List[int],None] = Query(default = None, description = "id of the reaction for knockout"),
+        boundary_reaction1 : int = Query(None),
+        lower1 : float = Query(None),
+        upper1 : float = Query(None),
+        boundary_reaction2 : int = Query(None),
+        lower2 : float = Query(None),
+        upper2 : float = Query(None),
+        boundary_reaction3 : int = Query(None),
+        lower3 : float = Query(None),
+        upper3 : float = Query(None),
+        boundary_reaction4 : int = Query(None),
+        lower4 : float = Query(None),
+        upper4 : float = Query(None),
+        view_name : str = Query(None) ):
+    pass
 
 
