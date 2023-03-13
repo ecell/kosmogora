@@ -47,6 +47,10 @@ class ModelHandler:
         self.id_type = id_type  
         print("id_type: {} registered.".format(id_type))
 
+    def list_reaction_ids(self):
+        self.model = cobra.io.read_sbml_model(self.base_model_path)
+        return self.model.reactions.list_attr('id')
+
     def save_user_model(self, user_model_path : str):
         import yaml
         from datetime import datetime
@@ -88,7 +92,7 @@ class ModelHandler:
 
     def _apply_modification(self, modification_commands, id_table = None):
         if self.model == None:
-            raise
+            raise 
 
         for command in modification_commands:
             if command[0] == "knockout":
@@ -99,6 +103,8 @@ class ModelHandler:
 
                 if self.model.reactions.has_id(reaction_id):
                     self.model.reactions.get_by_id(reaction_id).knock_out()
+                else:
+                    raise "Reaction {} is not found!".format(reaction_id)
 
             elif command[0] == "bound":
                 reaction_id = command[1]
@@ -109,7 +115,9 @@ class ModelHandler:
                 upper_bound = float(command[3])
                 if self.model.reactions.has_id(reaction_id):
                     self.model.reactions.get_by_id(reaction_id).bounds = (lower_bound, upper_bound)
-                print("apply: bound: {} {} {}".format(reaction_id, lower_bound, upper_bound))
+                    print("apply: bound: {} {} {}".format(reaction_id, lower_bound, upper_bound))
+                else:
+                    raise "Reaction {} is not found!".format(reaction_id)
             else:
                 #raise "Unknown command"
                 pass
@@ -153,7 +161,7 @@ class ModelHandler:
             view = json.load(f)
             for edge in view["elements"]["edges"]:
                 edge_id = edge["data"]["id"]
-                rxn_id = edge["data"]["bigg_id"]
+                rxn_id = edge["data"]["name"]
                 edgeID_to_rxnID[edge_id] = rxn_id
         return edgeID_to_rxnID
 

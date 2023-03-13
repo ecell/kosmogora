@@ -137,8 +137,53 @@ def process_command(commands : str, edgeID_to_rxnID = None):
         ret.append(command)
     return ret
 
+@app.get("/list_reaction_id", responses={404: {'description': 'Model not found'}} )
+def list_reaction_ids(model_name: str):
+    model_type = object_manager.check_model_type(model_name)
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+    return model_handler.list_reaction_ids()
 
-@app.get("/solve/{model_name}/", responses={404: {'description': 'Model not found'}})
+
+@app.get("/solve2/{model_name}/", responses={404: {'description': 'Model not found'}} )
+def solve2(model_name: str, command : Union[List[str], None] = Query(default=None), view_name: str = Query(default=None)):
+    model_type = object_manager.check_model_type(model_name)
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    # if reactions are specified by the edge-index instead of ID,
+    #  make a table to convert them.
+    edgeID_to_rxnID = None
+    if view_name != None:
+        #edgeID_to_rxnID = generate_edgeID_to_rxnID_map(view_name)
+        edgeID_to_rxnID = None 
+        model_handler.set_id_type( get_specified_view_path(view_name) )
+
+    # If the model-operation commands are submitted, apply the commands
+    if command != None:
+        for cmd in command:
+            tokens = cmd.split('.')
+            print(tokens)
+            model_handler.add_modification_command(tokens)
+    # Do FBA!
+    data = model_handler.do_FBA()
+    return data
+
+@app.get("/solve/{model_name}/", responses={404: {'description': 'Model not found'}}, deprecated=True)
 def solve(model_name: str, commands : str = Query(None), view_name : str = Query(None) ):
     """ Do FBA.
 
@@ -185,7 +230,68 @@ def solve(model_name: str, commands : str = Query(None), view_name : str = Query
     data = model_handler.do_FBA()
     return data
 
-@app.get("/save/{model_name}/{commands}/{author}/{new_model_name}", responses={404: {'description': 'Model not found'}})
+@app.get("/save2/{model_name}/{author}/{new_model_name}", responses={404: {'description': 'Model not found'}})
+def save2(model_name: str, author: str, new_model_name: str, command: Union[List[str], None] = Query(None),  view_name : str = Query(None) ):
+    """ Save user model.
+
+    Parameters:
+    ---
+    model_name: model name, such as iJO1366. Both base_model and user_defined_model can be specified.
+
+    commands: additional command such as knockout and bound. The delimiters are  '|' and '#' for command and arguments, respectively.  For example, 'knockout#TMAOR2|bound#DHAPT#0.01#0.9|
+
+    author: author name
+
+    new_model_name: author name
+
+    view_name: If reactions in commands are specified by the edgeID of the view, specify the view.
+    """
+
+    # Error check
+    if command == None or len(command) == 0:
+        raise HTTPException(status_code=500, detail='Both the commands and author must be specified')
+    if len(author) == 0:
+        raise HTTPException(status_code=500, detail='Both the commands and author must be specified')
+    if new_model_name in object_manager.list_user_models():
+        raise HTTPException(status_code=500, detail='The name {new_model_name} already exists'.format(new_model_name))
+
+    # First, Check the requested model either base_model or user_model
+    model_type = object_manager.check_model_type(model_name)
+
+    # Then, load therequested model.
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    # if the reactions in the argument 'commmands' are specified by the edgeID defined in the view,
+    # We have to generate the table.
+    edgeID_to_rxnID = None
+    if view_name != None:
+        #edgeID_to_rxnID = generate_edgeID_to_rxnID_map(view_name)
+        edgeID_to_rxnID = None 
+        model_handler.set_id_type( get_specified_view_path(view_name) )
+
+    if command != None:
+        for cmd in command:
+            tokens = cmd.split('.')
+            print(tokens)
+            model_handler.add_modification_command(tokens)
+    
+    new_model_file_basename = "{}.yaml".format(new_model_name)
+    new_model_file_path = os.path.join(DataDir, new_model_file_basename )
+    model_handler.set_author(author)
+    model_handler.set_model_name(new_model_name)
+    model_handler.save_user_model(new_model_file_path)
+    object_manager.register_model(new_model_name, new_model_file_path, model_handler.get_base_model_name(), model_name )
+    return {"new_model_name" : new_model_name}
+
+@app.get("/save/{model_name}/{commands}/{author}/{new_model_name}", responses={404: {'description': 'Model not found'}}, deprecated=True)
 def save(model_name: str, commands: str, author: str, new_model_name: str, view_name : str = Query(None) ):
     """ Save user model.
 
