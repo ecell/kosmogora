@@ -37,7 +37,7 @@ def test_solve_diff():
     print(response_normal.json())
 
     #query_mod = "/solve/sample1?commands=knockout#AtoB"
-    query_mod = "/solve2/sample1?command=knockout.AtoB"
+    query_mod = "/solve2/sample1?command=knockout-AtoB"
     print(urllib.parse.quote(query_mod))
     #response_mod =    client.get(urllib.parse.quote(query_mod))
     response_mod =    client.get(query_mod)
@@ -47,10 +47,10 @@ def test_solve_diff():
 
 def test_solve_viewid():
     #query_mod = "/solve/sample1?commands=knockout#AtoB"
-    query1 = "/solve2/sample1?command=knockout.AtoB"
+    query1 = "/solve2/sample1?command=knockout-AtoB"
     response1 =    client.get(query1)
 
-    query2 = "/solve2/sample1?command=knockout.97&view_name=sample1"
+    query2 = "/solve2/sample1?command=knockout-97&view_name=sample1"
     response2 =    client.get(query2)
     assert response1.json() == response2.json()
     print(response1.json())

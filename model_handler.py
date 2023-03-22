@@ -119,7 +119,7 @@ class ModelHandler:
                 else:
                     raise "Reaction {} is not found!".format(reaction_id)
             else:
-                #raise "Unknown command"
+                raise "Unknown command"
                 pass
         
     def do_FBA(self):
