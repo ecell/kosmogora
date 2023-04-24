@@ -291,6 +291,36 @@ def save2(model_name: str, author: str, new_model_name: str, command: Union[List
     object_manager.register_model(new_model_name, new_model_file_path, model_handler.get_base_model_name(), model_name )
     return {"new_model_name" : new_model_name}
 
+@app.get("/rxn_info/{model_name}/{reaction_id}")
+def get_reaction_info(model_name: str, reaction_id: str ):
+
+    model_type = object_manager.check_model_type(model_name)
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    model_property = object_manager.model_property(model_name)
+    if model_property is not None:
+        print(model_property)
+        if "reaction_db" in model_property:
+            reaction_db = model_property["reaction_db"]
+            reaction_info = model_handler.get_reaction_information(reaction_db, reaction_id)
+            if reaction_info != {}:
+                return { "reaction_information": reaction_info }
+            else:
+                raise HTTPException(
+                        status_code=404, detail="reaction name is not defined in the db".format(model_name))
+        else:
+            raise HTTPException(status_code=404, detail="reaction_db is not defined in the {}".format(model_name))
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
 @app.get("/save/{model_name}/{commands}/{author}/{new_model_name}", responses={404: {'description': 'Model not found'}}, deprecated=True)
 def save(model_name: str, commands: str, author: str, new_model_name: str, view_name : str = Query(None) ):
     """ Save user model.

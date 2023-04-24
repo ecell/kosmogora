@@ -165,6 +165,28 @@ class ModelHandler:
                 edgeID_to_rxnID[edge_id] = rxn_id
         return edgeID_to_rxnID
 
+    def get_reaction_information(self, reaction_db_file: str, reaction_id: str, view_path: str = None):
+        print(reaction_db_file)
+        column_names = []
+        data = None
+        find_flag = False
+        with open(reaction_db_file) as f:
+            for line_num, line in enumerate(f):
+                record = line.lstrip().rstrip().split('\t')
+                if line_num == 0:
+                    column_names = record
+                else:
+                    if record[0] == reaction_id:
+                        data = record
+        ret = {}
+        if data != None:
+            for (k,v) in zip(column_names, data):
+                ret[k] = v
+
+        return ret
+
+
+
 if __name__ == '__main__':
     mh = ModelHandler("iJO1366", "./models/iJO1366.xml")
     # Originally, this function should NOT be called by user.
