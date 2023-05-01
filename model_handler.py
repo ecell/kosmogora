@@ -169,6 +169,14 @@ class ModelHandler:
         print(reaction_db_file)
         column_names = []
         data = None
+
+        if self.id_type != None:
+            id_table = self.generate_edgeID_to_rxnID_map(self.id_type)
+            if reaction_id in id_table:
+                reaction_id = id_table[reaction_id]
+            else:
+                return {}
+
         find_flag = False
         with open(reaction_db_file) as f:
             for line_num, line in enumerate(f):

@@ -291,8 +291,8 @@ def save2(model_name: str, author: str, new_model_name: str, command: Union[List
     object_manager.register_model(new_model_name, new_model_file_path, model_handler.get_base_model_name(), model_name )
     return {"new_model_name" : new_model_name}
 
-@app.get("/rxn_info/{model_name}/{reaction_id}")
-def get_reaction_info(model_name: str, reaction_id: str ):
+@app.get("/reaction_information/{model_name}/{reaction_id}")
+def get_reaction_info(model_name: str, reaction_id: str, view_name: str = Query(None) ):
 
     model_type = object_manager.check_model_type(model_name)
     model_handler = ModelHandler() 
@@ -305,9 +305,11 @@ def get_reaction_info(model_name: str, reaction_id: str ):
     else:
         raise HTTPException(status_code=404, detail="Model not found")
 
+    if view_name != None:
+        model_handler.set_id_type( get_specified_view_path(view_name) )
     model_property = object_manager.model_property(model_name)
     if model_property is not None:
-        print(model_property)
+        #print(model_property)
         if "reaction_db" in model_property:
             reaction_db = model_property["reaction_db"]
             reaction_info = model_handler.get_reaction_information(reaction_db, reaction_id)
