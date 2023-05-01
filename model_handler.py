@@ -190,10 +190,26 @@ class ModelHandler:
         if data != None:
             for (k,v) in zip(column_names, data):
                 ret[k] = v
-
         return ret
 
-
+    def get_metabolite_information(self, metabolite_db_file: str, metabolite_id: str):
+        data = None
+        column_names = []
+        with open(metabolite_db_file) as f:
+            for line_num, line in enumerate(f):
+                record = line.lstrip().rstrip().split('\t')
+                if line_num == 0:
+                    print(record)
+                    column_names = record
+                else:
+                    if record[0] == metabolite_id:
+                        data = record
+                        print(record)
+        ret = {}
+        if data != None:
+            for (k,v) in zip(column_names, data):
+                ret[k] = v
+        return ret
 
 if __name__ == '__main__':
     mh = ModelHandler("iJO1366", "./models/iJO1366.xml")

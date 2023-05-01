@@ -291,6 +291,33 @@ def save2(model_name: str, author: str, new_model_name: str, command: Union[List
     object_manager.register_model(new_model_name, new_model_file_path, model_handler.get_base_model_name(), model_name )
     return {"new_model_name" : new_model_name}
 
+@app.get("/metabolite_information/{model_name}/{metabolite_id}")
+def get_metabolite_info(model_name: str, metabolite_id: str):
+    model_type = object_manager.check_model_type(model_name)
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+    model_property = object_manager.model_property(model_name)
+    if model_property is not None:
+        if "metabolites_db" in model_property:
+            metabolite_db = model_property["metabolites_db"]
+            metabolite_info = model_handler.get_metabolite_information(metabolite_db, metabolite_id)
+            if metabolite_info != {}:
+                return {"metabolite_information": metabolite_info }
+            else:
+                raise HTTPException(
+                        status_code=404, detail="metabolite name is not defined in the db".format(model_name))
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+
+
 @app.get("/reaction_information/{model_name}/{reaction_id}")
 def get_reaction_info(model_name: str, reaction_id: str, view_name: str = Query(None) ):
 

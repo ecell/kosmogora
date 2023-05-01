@@ -117,7 +117,8 @@ def initialize():
     model_set = {
             'sample1' : {"database_type" : "kegg", "default_view" : "sample1", "version" : "1.0.0", "organ" : "EColi", "path": "./models/sample1.xml" },
             'iJO1366' : {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi", "path": "./models/iJO1366.xml", 
-                            "reaction_db": "./models/bigg_models_reactions.txt"  }
+                "reaction_db": "./models/bigg_models_reactions.txt", 
+                "metabolites_db": "./models/bigg_models_metabolites.txt"   }
     }
     view_set = {
             "sample1" : {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi", "path": "./models/sample1.cyjs" },
@@ -155,12 +156,3 @@ if __name__ == '__main__':
     else:
         print("If you specify the option '-c', it will clean all the user_defined models and reset. ")
 
-    #manager = ModelViewManager()
-    #print(manager.list_models() )   # => ['iJO1366', 'sample1']
-    #print(manager.list_views() )    # => ['iJO1366', 'sample1']
-    #print(manager.list_views("iJO1366"))    # => ['iJO1366']
-    #print(manager.list_user_models("iJO1366")) # => []
-    #print(manager.model_property("iJO1366"))
-    #print(manager.check_model_type("iJO1366"))
-    #print(manager.check_model_type("test23"))
-    #print(manager.check_model_type("test33"))
