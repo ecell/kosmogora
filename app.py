@@ -292,7 +292,7 @@ def save2(model_name: str, author: str, new_model_name: str, command: Union[List
     return {"new_model_name" : new_model_name}
 
 @app.get("/metabolite_information/{model_name}/{metabolite_id}")
-def get_metabolite_info(model_name: str, metabolite_id: str):
+def get_metabolite_info(model_name: str, metabolite_id: str, view_name: str = Query(None) ):
     model_type = object_manager.check_model_type(model_name)
     model_handler = ModelHandler() 
     if model_type == "base_model" :
@@ -303,6 +303,8 @@ def get_metabolite_info(model_name: str, metabolite_id: str):
         model_handler.load_user_model(model_path)
     else:
         raise HTTPException(status_code=404, detail="Model not found")
+    if view_name != None:
+        model_handler.set_id_type( get_specified_view_path(view_name) )
     model_property = object_manager.model_property(model_name)
     if model_property is not None:
         if "metabolites_db" in model_property:

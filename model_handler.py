@@ -165,6 +165,18 @@ class ModelHandler:
                 edgeID_to_rxnID[edge_id] = rxn_id
         return edgeID_to_rxnID
 
+    def generate_nodeID_to_metaboliteID_map(self, view_path: str):
+        import json
+        nodeID_to_mtbID = {}
+        with open(view_path, 'r') as f:
+            view = json.load(f)
+            for node in view["elements"]["nodes"]:
+                if node["data"]["node_type"] == "metabolite":
+                    node_id = node["data"]["id"]
+                    mtb_id = node["data"]["name"]
+                    nodeID_to_mtbID[node_id] = mtb_id
+        return nodeID_to_mtbID
+
     def get_reaction_information(self, reaction_db_file: str, reaction_id: str, view_path: str = None):
         print(reaction_db_file)
         column_names = []
@@ -177,7 +189,7 @@ class ModelHandler:
             else:
                 return {}
 
-        find_flag = False
+        #find_flag = False
         with open(reaction_db_file) as f:
             for line_num, line in enumerate(f):
                 record = line.lstrip().rstrip().split('\t')
@@ -192,9 +204,17 @@ class ModelHandler:
                 ret[k] = v
         return ret
 
-    def get_metabolite_information(self, metabolite_db_file: str, metabolite_id: str):
+    def get_metabolite_information(self, metabolite_db_file: str, metabolite_id: str, view_path: str = None):
         data = None
         column_names = []
+
+        if self.id_type != None:
+            id_table = self.generate_nodeID_to_metaboliteID_map(self.id_type)
+            if metabolite_id in id_table:
+                metabolite_id = id_table[metabolite_id]
+            else:
+                return {}
+
         with open(metabolite_db_file) as f:
             for line_num, line in enumerate(f):
                 record = line.lstrip().rstrip().split('\t')
