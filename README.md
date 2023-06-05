@@ -29,6 +29,8 @@ download database files and place them in `./models`.
 ```
 wget http://bigg.ucsd.edu/static/namespace/bigg_models_reactions.txt
 wget http://bigg.ucsd.edu/static/namespace/bigg_models_metabolites.txt
+wget https://www.metanetx.org/cgi-bin/mnxget/mnxref/reac_prop.tsv
+wget https://github.com/ecell/id2id/releases/download/test2/id2id.tsv
 ```
 
 Initialization before launch server
