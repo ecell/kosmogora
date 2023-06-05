@@ -204,6 +204,15 @@ class ModelHandler:
                 ret[k] = v
         return ret
 
+    def get_reaction_name(self, reaction_id: str):
+        if self.id_type != None:
+            id_table = self.generate_edgeID_to_rxnID_map(self.id_type)
+            if reaction_id in id_table:
+                reaction_id = id_table[reaction_id]
+            else:
+                reaction_id = None
+        return reaction_id
+
     def get_metabolite_information(self, metabolite_db_file: str, metabolite_id: str, view_path: str = None):
         data = None
         column_names = []

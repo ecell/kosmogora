@@ -319,10 +319,8 @@ def get_metabolite_info(model_name: str, metabolite_id: str, view_name: str = Qu
         raise HTTPException(status_code=404, detail="Model not found")
 
 
-
-@app.get("/reaction_information/{model_name}/{reaction_id}")
+@app.get("/reaction_information/{model_name}/{reaction_id}", deprecated=True)
 def get_reaction_info(model_name: str, reaction_id: str, view_name: str = Query(None) ):
-
     model_type = object_manager.check_model_type(model_name)
     model_handler = ModelHandler() 
     if model_type == "base_model" :
@@ -351,6 +349,69 @@ def get_reaction_info(model_name: str, reaction_id: str, view_name: str = Query(
             raise HTTPException(status_code=404, detail="reaction_db is not defined in the {}".format(model_name))
     else:
         raise HTTPException(status_code=404, detail="Model not found")
+
+@app.get("/reaction_information2/{model_name}/{reaction_id}")
+def get_reaction_info2(model_name: str, reaction_id: str, 
+        db_src: str = Query(None), view_name: str = Query(None)):
+    """Get the information of the reaction. db_src can be set 'bigg' or 'metanetx'.
+    """
+
+    import information
+    model_type = object_manager.check_model_type(model_name)
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    # First, get the name of the reaction from the model file.
+    if view_name != None:
+        model_handler.set_id_type( get_specified_view_path(view_name) )
+        reaction_id = model_handler.get_reaction_name(reaction_id)
+
+    model_property = object_manager.model_property(model_name)
+    # Get the database type of the model
+    model_db_type = None
+    if model_property != None and "reaction_db" in model_property:
+        model_db_type = model_property["database_type"]
+
+    # DB source specified by user
+    if db_src == None:
+        db_src = model_db_type  # default value
+
+    db_table = {
+        "bigg" : "bigg.reaction", "metanetx" : "metanetx.reaction",
+    }
+    if model_db_type in db_table:   
+        # ex) bigg => bigg.reaction
+        model_db_type = db_table[model_db_type]
+    else:
+        raise HTTPException(status_code=404, detail="Model DB not found")
+
+    if db_src in db_table:
+        db_src = db_table[db_src]
+    else:
+        raise HTTPException(status_code=404, detail="Specified DB not found")
+
+    if model_db_type != db_src:
+        reaction_id = information.convert_name(model_db_type, reaction_id, db_src)
+
+    ret = None
+    if reaction_id != None:
+        ret = information.get_reaction_information(reaction_id, db_src)
+    if ret != None:
+        return { "reaction_information": ret }
+    else:
+        raise HTTPException(status_code=404, detail="Reaction not found")
+
+
+
+
+
 
 @app.get("/save/{model_name}/{commands}/{author}/{new_model_name}", responses={404: {'description': 'Model not found'}}, deprecated=True)
 def save(model_name: str, commands: str, author: str, new_model_name: str, view_name : str = Query(None) ):
