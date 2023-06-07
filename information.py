@@ -8,7 +8,7 @@ def get_reaction_information_bigg(reaction_id):
     ret = {}
     with open(dbfilename) as f:
         for line_num, line in enumerate(f):
-            record = line.lstrip().rstrip().split('\t')
+            record = line.rstrip('\n').split('\t')
             if line_num == 0:
                 column_names = record
             else:
@@ -39,10 +39,11 @@ def get_reaction_information_mtnx(reaction_id):
     Is this a transport reaction [BOOLEAN]
     '''
     with open(dbfilename) as f:
+        print(reaction_id)
         for line in f:
             if line[0] == '#':
                 continue
-            record = line.rstrip().split('\t')
+            record = line.rstrip('\n').split('\t')
             if len(record) == 6:
                 if record[0] == reaction_id:
                     # pack

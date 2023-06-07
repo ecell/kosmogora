@@ -406,7 +406,7 @@ def get_reaction_info2(model_name: str, reaction_id: str,
     if ret != None:
         return { "reaction_information": ret }
     else:
-        raise HTTPException(status_code=404, detail="Reaction not found")
+        raise HTTPException(status_code=404, detail="Reaction {} not found at {}".format(reaction_id, db_src))
 
 
 
