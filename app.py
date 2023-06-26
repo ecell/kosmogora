@@ -293,6 +293,18 @@ def save2(model_name: str, author: str, new_model_name: str, command: Union[List
 
 @app.get("/metabolite_information/{model_name}/{metabolite_id}")
 def get_metabolite_info(model_name: str, metabolite_id: str, view_name: str = Query(None) ):
+    """Get the information of the metabolite. 
+
+    Currently, only 'bigg' is supported.
+
+    Parameters:
+    ---
+    model_name: model name, such as iJO1366. Both base_model and user_defined_model can be specified.
+
+    metabolite_id: metabolite name such as nadh_c
+
+    view_name: If the view file (such as iJO1366) is set, the 'metabolite_id' parameter can be set with the index of the metabolite instead of its name.
+    """
     model_type = object_manager.check_model_type(model_name)
     model_handler = ModelHandler() 
     if model_type == "base_model" :
@@ -354,6 +366,16 @@ def get_reaction_info(model_name: str, reaction_id: str, view_name: str = Query(
 def get_reaction_info2(model_name: str, reaction_id: str, 
         db_src: str = Query(None), view_name: str = Query(None)):
     """Get the information of the reaction. db_src can be set 'bigg' or 'metanetx'.
+
+    Parameters:
+    ---
+    model_name: model name, such as iJO1366. Both base_model and user_defined_model can be specified.
+
+    reaction_id: reaction name such as MDH
+
+    db_src: database source. Currently, 'bigg' or 'metanetx' can be set.
+
+    view_name: If the view file (such as iJO1366) is set, the 'reaction_name' parameter  can be set with the index of the reaction instead of its name.
     """
 
     import information
@@ -407,10 +429,6 @@ def get_reaction_info2(model_name: str, reaction_id: str,
         return { "reaction_information": ret }
     else:
         raise HTTPException(status_code=404, detail="Reaction {} not found at {}".format(reaction_id, db_src))
-
-
-
-
 
 
 @app.get("/save/{model_name}/{commands}/{author}/{new_model_name}", responses={404: {'description': 'Model not found'}}, deprecated=True)

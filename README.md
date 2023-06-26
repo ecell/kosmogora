@@ -12,19 +12,17 @@ $ source env/bin/activate
 
 ### Automaticaly
 
-This process can be done by `preparation.sh` script.
-
-
+This process can be done by `preparation.sh` script (for LINUX and MacOS only).
 
 ### By hand
 
-install libraries.
+First, install dependent libraries.
 
 ```
 $ pip install -r requirements.txt
 ```
 
-download database files and place them in `./models`.
+Download database files and place them in `./models`.
 
 ```
 wget http://bigg.ucsd.edu/static/namespace/bigg_models_reactions.txt
@@ -33,13 +31,11 @@ wget https://www.metanetx.org/cgi-bin/mnxget/mnxref/reac_prop.tsv
 wget https://github.com/ecell/id2id/releases/download/test2/id2id.tsv
 ```
 
-Initialization before launch server
+Run Initialization before launch server
 
 ```
 $ python obj_manager.py -c
 ```
-
-
 
 ## Run the server
 
