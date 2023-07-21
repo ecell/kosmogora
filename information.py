@@ -49,7 +49,7 @@ def get_reaction_information_mtnx(reaction_id):
                     # pack
                     ret = {
                             "ID": record[0],
-                            "EQUATION": record[1],
+                            "REACTION": record[1],
                             "REFERENCE": record[2],
                             "ECs": record[3],
                             "IS_BALANCED": record[4],
