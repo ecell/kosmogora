@@ -1,462 +1,492 @@
-from xmlrpc.client import Boolean
-from fastapi import FastAPI, Query, Body, Response, HTTPException
-
-from typing import Optional
-import json
-import cobra.io
-from logging import getLogger
-
-#logger = getLogger(__name__)
-logger = getLogger('uvicorn')
-import default
-import yaml
-from datetime import datetime
-
-#MODELS = ['sample1', 'iJO1366']
-class Models_Views:
-    '''
-    This class manage the models and views.
-    '''
-    def __init__(self):
-        # This should be loaded from files such as XML and YAML.
-        #self.model_set = {
-        #    'sample1' : {"database_type" : "kegg", "default_view" : "sample1", "version" : "1.0.0", "organ" : "EColi", "path": "./models/sample1.xml" },
-        #    'iJO1366' : {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi", "path": "./models/iJO1366.xml" }
-        #}
-        #self.view_set = {
-        #    "sample1" : {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi" },
-        #    "iJO1366" : {"database_type" : "bigg", "model" : "iJO1366", "version" : "1.0.0", "organ" : "EColi" }
-        #}
-        self.model_set = self.read_yaml(default.RegisteredModelFile)[default.ModelRootKey]
-        self.view_set  = self.read_yaml(default.RegisteredViewFile)[default.ViewRootKey]
-        self.user_defined_model_set = self.read_yaml(default.UserDefinedModelFile)[default.UserModelRootKey]
-
-        #validity_hours = 10
-        validity_hours = None
-        if validity_hours != None:
-            current_time = datetime.today()
-            temp = dict()
-            #temp = set(filter( lambda x: (datetime.strptime(x["date"], "%Y-%m-%d_%H:%M:%S") - current_time).seconds < validity_hours * 3600, self.user_defined_model_set) )
-            for key, val in self.user_defined_model_set.items():
-                dt = current_time - datetime.strptime(val["date"], "%Y-%m-%d_%H:%M:%S")
-                #print("{} - {} \t= {}s ".format( datetime.strptime(val["date"], "%Y-%m-%d_%H:%M:%S" ), current_time, dt.seconds ))
-                if dt.seconds <= validity_hours * 3600:
-                    print("{} passed".format(val))
-                    temp[key] = val
-            self.user_defined_model_set = temp
-            
-
-    def read_yaml(self, filename: str):
-        '''
-        Reads yaml file which contain the information of the models and views.
-        '''
-        with open(filename) as file:
-            ret = yaml.safe_load(file)
-        return ret
-
-    def models(self):
-        '''
-        Return the list of the available models.
-        The list does not include Models modified by users.
-        In order to get the list of the models modified by users, user_defined_models() should be called.
-        '''
-        return list( self.model_set.keys() )
-    
-    def model_property(self, model_name: str):
-        '''
-        Returns the property of the model.
-        '''
-        if model_name in self.model_set:
-            return self.model_set[model_name]
-        else:
-            return None
-    
-    def views(self):
-        '''
-        Return the list of the available views.
-        '''
-        return list( self.view_set.keys() )
-
-    def view_property(self, view_name: str):
-        '''
-        Returns the property of the view.
-        '''
-        if view_name in self.view_set:
-            return self.view_set[view_name]
-        else:
-            return None
-
-    def views_of_model(self, model_name: str):
-        '''
-        Returns the views, which is related to a queried model.
-        '''
-        ret_val = []
-        for view_name, properties in self.view_set.items():
-            if "model" in properties and properties["model"] == model_name:
-                ret_val.append(view_name)
-
-        return ret_val
-    
-    def user_defined_models(self):
-        '''
-        Return the list of the available models, which is modified by the users.
-        '''
-        return list(self.user_defined_model_set.keys() )
-
-    def register_model(self, model_name : str , new_model_path : str, author : str ):
-        date_str = datetime.today().strftime("%Y-%m-%d_%H:%M:%S")
-        self.user_defined_model_set[model_name] = {
-            "model_path" : new_model_path, 
-            "author" : author,
-            "date" : date_str,
-        }
-        with open(default.UserDefinedModelFile, "w") as file:
-            yaml.dump({default.UserModelRootKey : self.user_defined_model_set }, file)
+from fastapi import FastAPI, Response, Query, HTTPException
+from obj_manager import ModelViewManager, DataDir
+from model_handler import ModelHandler
+from typing import Tuple, List, Union
+import os
 
 class XMLResponse(Response):
     media_type = "application/xml"
 
+COMMAND_DELIMITER='|'
+ARGUMENT_DELIMITER='#'
 
 app = FastAPI()
-models_views = Models_Views()
-
-class ModelHandler:
-    '''
-    This class manages to do the FBA and modify the models.
-    '''
-    def __init__(self, base_filename : Optional[str] = None, view_path : Optional[str] = None ):
-        self.base_filename = base_filename
-        self.applied_commands = []
-        self.num_modified = 0   # the number of the applied modification
-        self.model = None
-
-        self.view_path = view_path
-        self.rxn_specified_by_viewid = False
-
-        if base_filename != None:
-            self.load_model(base_filename)
-
-        if view_path != None:
-            self.set_view_file(view_path)
-
-    def load_model(self, base_filename: str) -> None:
-        self.base_filename = base_filename
-        self.model = cobra.io.read_sbml_model(base_filename)
-
-    def set_view_file(self, view_path: str) -> None:
-        # Generate table that relate the edge_id to reaction_id defined in database.
-        self.view_path = view_path
-        self.edgeID_to_rxnID = {}
-        with open(self.view_path, 'r') as f:
-            view = json.load(f)
-            for edge in view["elements"]["edges"]:
-                edge_id = edge["data"]["id"]
-                rxn_id = edge["data"]["bigg_id"]
-                self.edgeID_to_rxnID[edge_id] = rxn_id
-        self.rxn_specified_by_viewid = True
-
-    def load_user_model(self, usermodel_path: str) -> None :
-        '''
-        Load and apply the modification defined by users, which is based on the pre-defined model.
-        '''
-        import yaml 
-        user_defined_data = dict()
-        with open(usermodel_path) as file:
-            user_defined_data = yaml.safe_load(file)
-
-        assert "base_model_path" in user_defined_data
-        assert "modification" in user_defined_data
-        if "view_path" in user_defined_data:
-            self.set_view_file(user_defined_data["view_path"])
-        self.load_model(user_defined_data["base_model_path"])
-        self.edit_model_by_query_str(user_defined_data["modification"])
-    
-    def save_user_model(self, outfile_path: str, author : str, description : str) -> None :
-        '''
-        Save the modifications defined by the users.
-        '''
-        import yaml
-        data = {
-            "base_model_path" : self.base_filename,
-            "modification" : ','.join(self.applied_commands) ,
-            "author" : author,
-            "description" : description
-        }   
-        if self.rxn_specified_by_viewid == True:
-            data["view_path"] = self.view_path
-        with open(outfile_path, "w") as file:
-            yaml.dump(data, file)
-
-
-    def apply_bounds(self, reaction_id : str, lower_bound: float, upper_bound : float) -> bool:
-        '''
-        Edit the boundary of the specified reaction.
-        This function is called by the edit_model_by_query_str() internally.
-        '''
-        assert self.model != None
-        ret_flag = False
-        if self.model.reactions.has_id(reaction_id):
-            self.model.reactions.get_by_id(reaction_id).bounds = (lower_bound, upper_bound)
-            self.num_modified += 1
-            ret_flag = True 
-        return ret_flag
-            
-    def apply_knockout(self, reaction_id: str) -> bool :
-        '''
-        Knockout specified reaction.
-        This function is called by the edit_model_by_query_str() internally.
-        '''
-        assert self.model != None
-        ret_flag = False
-        if self.model.reactions.has_id(reaction_id):
-            self.model.reactions.get_by_id(reaction_id).knock_out()
-            self.num_modified += 1
-            ret_flag = True 
-        return ret_flag
-
-    def edit_model_by_query_str(self, commands: str = None) -> int:
-        '''
-        Process and apply the commands.
-        '''
-        if commands == None:
-            commands = []
-        else:
-            commands = commands.split(',')
-            
-        print(commands)
-        for cmd in commands:
-            cmd = cmd.split('_')
-            if cmd[0] == "bound":
-                assert len(cmd) == 4
-                reaction_id = cmd[1]
-                if self.rxn_specified_by_viewid == True:
-                    reaction_id = self.edgeID_to_rxnID[cmd[1]]
-                    print(f"boundary: rxn-id conversion: {cmd[1]} => {reaction_id}")           
-
-                lower_bound, upper_bound = float(cmd[2]), float(cmd[3])
-                result = self.apply_bounds(reaction_id, lower_bound, upper_bound)
-                if result != True:
-                    raise Exception("apply bound failure")
-
-            elif cmd[0] == "knockout":
-                assert len(cmd) == 2
-                reaction_id = cmd[1]
-
-                if self.rxn_specified_by_viewid == True:
-                    reaction_id = self.edgeID_to_rxnID[cmd[1]]
-                    print(f"knockout: rxn-id conversion: {cmd[1]} => {reaction_id}")           
-
-                result = self.apply_knockout(reaction_id)
-                if result != True:
-                    raise Exception("apply knockout failure")
-        self.applied_commands += commands    
-
-        return self.num_applied_modification()
-
-    def solve(self):
-        """
-        Execute the flux balance analysis.
-        """
-        assert self.model != None
-        with self.model:
-            solution = self.model.optimize()
-
-        data = {
-            'fluxes': sorted(solution.fluxes.items(), key=lambda kv: kv[0]),
-            'objective_value': solution.objective_value}
-
-        return data
-
-    def num_applied_modification(self) -> int:
-        '''
-        returns the number of the applied modifications.
-        '''
-        return self.num_modified
-
-def open_model(model_name: str, view_path: Optional[str] = None):
-    """ 
-    Opens the model and return the ModelHandler object.
-    The model_name is either raw model or user_defined model.
-    """
-    import os
-    usermodel_path = f"user_defined_model/{model_name}.yaml"      
-    model_handler = ModelHandler()
-
-    if model_name in models_views.models(): # case 1: Base Model
-        model_path = models_views.model_property(model_name)["path"]
-        model_handler.load_model(model_path)
-        if view_path != None:
-            model_handler.set_view_file(view_path)
-    elif os.path.isfile(usermodel_path):   # case 2: User defined model
-        model_handler.load_user_model(usermodel_path)
-    else:   # Error
-        model_handler = None
-    return model_handler
-
+object_manager = ModelViewManager()
 
 @app.get("/list_models")
 def list_models():
     """Returns the list of available models."""
-    model_list = models_views.models()
+    model_list = object_manager.list_models()
     return {"models": model_list}
 
-@app.get("/list_views/{model_name}", responses={404: {'description': 'Model not found'}})
-def list_views(model_name: str):
-    """Returns available views related to the queried model"""
-    if model_name not in models_views.models():
+@app.get("/user_model_tree")
+def user_model_tree():
+    tree = object_manager.get_user_model_tree()
+    return {"tree": tree}
+
+@app.get("/list_views/", responses={404: {'description': 'Model not found'}})
+def list_views(model_name: str = Query(None) ):
+    """
+    Returns available views.
+    If the 'model_name' is specified as a query parameter, 
+    it returns the views related to the specified model.
+    """
+    if model_name != None and model_name not in object_manager.list_models():
+            raise HTTPException(status_code=404, detail="Model not found")
+
+    view_list = object_manager.list_views(model_name)
+    return {"views" : view_list}
+
+
+@app.get("/open_sbml/{model_name}", response_class=XMLResponse, responses={404: {'description': 'Model not found'}})
+def open_sbml(model_name: str):
+    if model_name not in object_manager.list_models():
         raise HTTPException(status_code=404, detail="Model not found")
-    return {"views": models_views.views_of_model(model_name)}
-
-
-@app.get("/open_sbml/{name}", response_class=XMLResponse, responses={404: {'description': 'Model not found'}})
-def open_sbml(name: str):
-    """Returns the model, written in XML format. """
-    if name not in models_views.models():
-        raise HTTPException(status_code=404, detail="Model not found")
-
-    with open(f'./models/{name}.xml', 'r') as f:
+    model_path = object_manager.model_property(model_name)["path"]
+    data = None
+    with open(model_path, 'r') as f:
         data = f.read()
     return Response(content=data, media_type="application/xml")
 
-@app.get("/model/{name}", responses={404: {'description': 'Model not found'}}, deprecated=True)
-def model(name: str):
-    # XXX This function originally should responce model, instead of *.cyjs.
-    if name not in models_views.models():
-        raise HTTPException(status_code=404, detail="Model not found")
 
-    with open(f'./models/{name}.cyjs', 'r') as f:
-        data = json.load(f)
-    return data
-
-@app.get("/get_model_property/{name}", responses={404: {'description': 'Model not found'}})
-def get_model_property(name: str):
+@app.get("/get_model_property/{model_name}", responses={404: {'description': 'Model not found'}})
+def get_model_property(model_name: str):
     """Returns the model property, such as reference database, version. """
-    if name not in models_views.models():
+    if model_name not in object_manager.list_models():
         raise HTTPException(status_code=404, detail="Model not found")
-    data = models_views.model_property(name)
+    data = object_manager.model_property(model_name)
     return data
 
-@app.get("/open_view/{name}", responses={404: {'description': 'Model not found'}})
-def open_view(name: str):
+@app.get("/open_view/{view_name}", responses={404: {'description': 'View not found'}})
+def open_view(view_name: str):
     """Returns the view in .cyjs format"""
-    if name not in models_views.views_of_model(name):
-        raise HTTPException(status_code=404, detail="Model not found")
-
-    with open(f'./models/{name}.cyjs', 'r') as f:
+    import json
+    if view_name not in object_manager.list_views(view_name):
+        raise HTTPException(status_code=404, detail="View not found")
+    view_path = object_manager.view_property(view_name)["path"]
+    data = None
+    with open(view_path, 'r') as f:
         data = json.load(f)
     return data
 
-@app.get("/get_view_property/{name}", responses={404: {'description': 'Model not found'}})
-def get_view_property(name: str):
+@app.get("/get_view_property/{view_name}", responses={404: {'description': 'Model not found'}})
+def get_view_property(view_name: str):
     """Returns the view property, such as reference database, version. """
-    if name not in models_views.views():
+    if view_name not in object_manager.list_views():
         raise HTTPException(status_code=404, detail="Model not found")
-    data = models_views.view_property(name)
+    data = object_manager.view_property(view_name)
     return data
-
-def make_time_string():
-    import datetime
-    now = datetime.datetime.now()
-    d = '{:%Y%m%d%H%M}'.format(now)
-    return d
-
-@app.get("/solve/{name}", responses={404: {'description': 'Model not found'}}, deprecated=True)
-def solve(name: str, knockouts: str = Query(None)):
-    """ Execute the flux balance analysis (FBA) """
-    if name not in models_views.models():
-        raise HTTPException(status_code=404, detail="Model not found")
-
-    if knockouts is None:
-        knockouts = []
-    else:
-        knockouts = knockouts.split(',')
-        logger.warning(f'Solve {name} model with {len(knockouts)} knowkout')
-
-    model_path = models_views.model_property(name)["path"]
-    model = cobra.io.read_sbml_model(model_path)
-
-    with model:
-        for reaction_id in knockouts:
-            if not model.reactions.has_id(reaction_id):
-                logger.warn(f'Reaction [{reaction_id}] not found.')
-                continue
-
-            model.reactions.get_by_id(reaction_id).knock_out()
-        solution = model.optimize()
-
-    data = {
-        'fluxes': sorted(solution.fluxes.items(), key=lambda kv: kv[0]),
-        'objective_value': solution.objective_value}
-    return data
-
-
-@app.get("/save_model/{new_model_name}/{base_model_name}/", responses={404: {'description': 'Model not found'}})
-def save_model(new_model_name: str, base_model_name: str, modification: str = Query(None), author = Query(None), description = Query(None), view_name = Query(None)):
-    """
-    Save user defined model.
-    For the base_model_name, both prepared model and other user-defined model can be specified.
-    """
-    view_path = None
-    if view_name != None:
-        view_path = f'./models/{view_name}.cyjs'
-    model_handler = open_model(base_model_name, view_path)
-    if not isinstance(model_handler, ModelHandler):
-        raise HTTPException(status_code=404, detail="Model not found")
-
-    if modification != None:
-        model_handler.edit_model_by_query_str(modification)
-    
-    outfile_path = f"user_defined_model/{new_model_name}.yaml"
-    model_handler.save_user_model(outfile_path, author, description)
-    models_views.register_model(new_model_name, outfile_path, author)
-    return new_model_name
 
 @app.get("/list_user_model/", responses={404: {'description': 'Model not found'}})
-def list_user_defined_models():
-    """
-    Get the list of the user defined models.
-    """
-    model_list = models_views.user_defined_models()
-    return {"user_defined_models": model_list}
-
-
-@app.get("/solve2/{name}/", responses={404: {'description': 'Model not found'}})
-def solve2(name: str, modification : str = Query(None), view_name : str = Query(None) ):
-    view_path = None
-    if view_name != None:
-        view_path = f'./models/{view_name}.cyjs'
-    model_handler = open_model(name, view_path)
-    if not isinstance(model_handler, ModelHandler):
+def list_user_modification_models(base_model_name: str = Query(None) ):
+    if base_model_name != None and base_model_name not in object_manager.list_models():
         raise HTTPException(status_code=404, detail="Model not found")
+    user_model_list = object_manager.list_user_models(base_model_name)
+    return {"user_models" : user_model_list}
 
-    if modification != None:
-        result= model_handler.edit_model_by_query_str(modification)
-        print(f"model edit: {result}")
+@app.get("/open_user_model/{user_model_name}", responses={404: {'description': 'user_model not found'}})
+def open_user_modification_models(user_model_name: str):
+    """ """
+    import yaml 
+    if user_model_name not in object_manager.list_user_models():
+        raise HTTPException(status_code=404, detail="UserModel not found")
+    user_model_path = object_manager.user_model_property(user_model_name)['path']
+    data = None
+    with open(user_model_path, 'r') as f:
+        data = yaml.safe_load(f)
+    return data
 
-    solution = model_handler.solve()
-    return solution
 
-@app.get("/get_user_modification/{user_model_name}/", responses={404: {'description': 'Model not found'}})
-def get_user_modification(user_model_name: str):
-    '''
-    Returns the modifications of the specified user-defined model;
-    '''
-    import os
-    user_model_path = f"user_defined_model/{user_model_name}.yaml"      
-    if os.path.isfile(user_model_path):  
-        with open(user_model_path) as file:
-            return yaml.safe_load(file)
+def generate_edgeID_to_rxnID_map(view_name: str):
+    """ convert reactions specified the edgeID to its original name """
+    import json
+    if view_name not in object_manager.list_views(view_name):
+        raise HTTPException(status_code=404, detail="View not found")
+    view_path = object_manager.view_property(view_name)["path"]
+    edgeID_to_rxnID ={}
+    with open(view_path, 'r') as f:
+        view = json.load(f)
+        for edge in view["elements"]["edges"]:
+            edge_id = edge["data"]["id"]
+            rxn_id = edge["data"]["bigg_id"]
+            edgeID_to_rxnID[edge_id] = rxn_id
+    return edgeID_to_rxnID
+
+def get_specified_view_path(view_name: str):
+    if view_name not in object_manager.list_views(view_name):
+        raise HTTPException(status_code=404, detail="View not found")
+    view_path = object_manager.view_property(view_name)["path"]
+    return view_path
+
+def process_command(commands : str, edgeID_to_rxnID = None):
+    """ process command given by the user """
+    import urllib.parse
+    command_decoded = urllib.parse.unquote_to_bytes(commands).decode()
+    ret = []
+    for command_str in command_decoded.split(COMMAND_DELIMITER):
+        if command_str == '':
+            print("warn: empty command{}".format(command_str))
+            continue
+        command = command_str.split(ARGUMENT_DELIMITER)
+        if edgeID_to_rxnID != None:
+            if command[0] == 'knockout' or command[0] == 'bound':
+                if not command[1] in edgeID_to_rxnID:
+                    raise
+                command[1] = edgeID_to_rxnID[ command[1] ]  # replace the edgeID with reactionID
+            pass
+        ret.append(command)
+    return ret
+
+@app.get("/list_reaction_id", responses={404: {'description': 'Model not found'}} )
+def list_reaction_ids(model_name: str):
+    model_type = object_manager.check_model_type(model_name)
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+    return model_handler.list_reaction_ids()
+
+
+@app.get("/solve2/{model_name}/", responses={404: {'description': 'Model not found'}} )
+def solve2(model_name: str, command : Union[List[str], None] = Query(default=None), view_name: str = Query(default=None)):
+    model_type = object_manager.check_model_type(model_name)
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
     else:
         raise HTTPException(status_code=404, detail="Model not found")
 
-# @app.get("/hello")
-# def hello():
-#    return {"Hello": "World!"}
-# 
-# @app.post("/users/{name}")
-# def create_user(name: str, age: int = Query(None), body: dict = Body(None)):
-#     return {
-#         "age": age,
-#         "name": name,
-#         "country": body["country"],
-#     }
+    # if reactions are specified by the edge-index instead of ID,
+    #  make a table to convert them.
+    edgeID_to_rxnID = None
+    if view_name != None:
+        #edgeID_to_rxnID = generate_edgeID_to_rxnID_map(view_name)
+        edgeID_to_rxnID = None 
+        model_handler.set_id_type( get_specified_view_path(view_name) )
+
+    # If the model-operation commands are submitted, apply the commands
+    if command != None:
+        for cmd in command:
+            tokens = cmd.split('-')
+            print(tokens)
+            model_handler.add_modification_command(tokens)
+    # Do FBA!
+    data = model_handler.do_FBA()
+    return data
+
+@app.get("/solve/{model_name}/", responses={404: {'description': 'Model not found'}}, deprecated=True)
+def solve(model_name: str, commands : str = Query(None), view_name : str = Query(None) ):
+    """ Do FBA.
+
+    Parameters:
+    ---
+    model_name: model name, such as iJO1366. Both base_model and user_defined_model can be specified.
+
+    commands: additional command such as knockout and bound. The delimiters are  '|' and '#' for command and arguments, respectively.  For example, 'knockout#TMAOR2|bound#DHAPT#0.01#0.9|
+
+    view_name: If reactions in commands are specified by the edgeID of the view, specify the view.
+    """
+    # First, Check the requested model either base_model or user_model
+    model_type = object_manager.check_model_type(model_name)
+
+
+    # Then, load the requested model.
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    # if the reactions in the argument 'commmands' are specified by the edgeID defined in the view,
+    # We have to generate the table.
+    edgeID_to_rxnID = None
+    if view_name != None:
+        #edgeID_to_rxnID = generate_edgeID_to_rxnID_map(view_name)
+        edgeID_to_rxnID = None 
+        model_handler.set_id_type( get_specified_view_path(view_name) )
+    
+    # If the model-operation commands are submitted, apply the commands
+    if commands != None:
+        command_processed = process_command(commands, edgeID_to_rxnID)
+        print(commands)
+        print(command_processed)
+        for cmd in command_processed:
+            model_handler.add_modification_command(cmd)
+
+    # Do FBA!
+    data = model_handler.do_FBA()
+    return data
+
+@app.get("/save2/{model_name}/{author}/{new_model_name}", responses={404: {'description': 'Model not found'}})
+def save2(model_name: str, author: str, new_model_name: str, command: Union[List[str], None] = Query(None),  view_name : str = Query(None) ):
+    """ Save user model.
+
+    Parameters:
+    ---
+    model_name: model name, such as iJO1366. Both base_model and user_defined_model can be specified.
+
+    commands: additional command such as knockout and bound. The delimiters are  '|' and '#' for command and arguments, respectively.  For example, 'knockout#TMAOR2|bound#DHAPT#0.01#0.9|
+
+    author: author name
+
+    new_model_name: author name
+
+    view_name: If reactions in commands are specified by the edgeID of the view, specify the view.
+    """
+
+    # Error check
+    if command == None or len(command) == 0:
+        raise HTTPException(status_code=500, detail='Both the commands and author must be specified')
+    if len(author) == 0:
+        raise HTTPException(status_code=500, detail='Both the commands and author must be specified')
+    if new_model_name in object_manager.list_user_models():
+        raise HTTPException(status_code=500, detail='The name {new_model_name} already exists'.format(new_model_name))
+
+    # First, Check the requested model either base_model or user_model
+    model_type = object_manager.check_model_type(model_name)
+
+    # Then, load therequested model.
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    # if the reactions in the argument 'commmands' are specified by the edgeID defined in the view,
+    # We have to generate the table.
+    edgeID_to_rxnID = None
+    if view_name != None:
+        #edgeID_to_rxnID = generate_edgeID_to_rxnID_map(view_name)
+        edgeID_to_rxnID = None 
+        model_handler.set_id_type( get_specified_view_path(view_name) )
+
+    if command != None:
+        for cmd in command:
+            tokens = cmd.split('-')
+            print(tokens)
+            model_handler.add_modification_command(tokens)
+    
+    new_model_file_basename = "{}.yaml".format(new_model_name)
+    new_model_file_path = os.path.join(DataDir, new_model_file_basename )
+    model_handler.set_author(author)
+    model_handler.set_model_name(new_model_name)
+    model_handler.save_user_model(new_model_file_path)
+    object_manager.register_model(new_model_name, new_model_file_path, model_handler.get_base_model_name(), model_name )
+    return {"new_model_name" : new_model_name}
+
+@app.get("/metabolite_information/{model_name}/{metabolite_id}")
+def get_metabolite_info(model_name: str, metabolite_id: str, view_name: str = Query(None) ):
+    """Get the information of the metabolite. 
+
+    Currently, only 'bigg' is supported.
+
+    Parameters:
+    ---
+    model_name: model name, such as iJO1366. Both base_model and user_defined_model can be specified.
+
+    metabolite_id: metabolite name such as nadh_c
+
+    view_name: If the view file (such as iJO1366) is set, the 'metabolite_id' parameter can be set with the index of the metabolite instead of its name.
+    """
+    model_type = object_manager.check_model_type(model_name)
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+    if view_name != None:
+        model_handler.set_id_type( get_specified_view_path(view_name) )
+    model_property = object_manager.model_property(model_name)
+    if model_property is not None:
+        if "metabolites_db" in model_property:
+            metabolite_db = model_property["metabolites_db"]
+            metabolite_info = model_handler.get_metabolite_information(metabolite_db, metabolite_id)
+            if metabolite_info != {}:
+                return {"metabolite_information": metabolite_info }
+            else:
+                raise HTTPException(
+                        status_code=404, detail="metabolite name is not defined in the db".format(model_name))
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+
+@app.get("/reaction_information/{model_name}/{reaction_id}", deprecated=True)
+def get_reaction_info(model_name: str, reaction_id: str, view_name: str = Query(None) ):
+    model_type = object_manager.check_model_type(model_name)
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    if view_name != None:
+        model_handler.set_id_type( get_specified_view_path(view_name) )
+    model_property = object_manager.model_property(model_name)
+    if model_property is not None:
+        #print(model_property)
+        if "reaction_db" in model_property:
+            reaction_db = model_property["reaction_db"]
+            reaction_info = model_handler.get_reaction_information(reaction_db, reaction_id)
+            if reaction_info != {}:
+                return { "reaction_information": reaction_info }
+            else:
+                raise HTTPException(
+                        status_code=404, detail="reaction name is not defined in the db".format(model_name))
+        else:
+            raise HTTPException(status_code=404, detail="reaction_db is not defined in the {}".format(model_name))
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+@app.get("/reaction_information2/{model_name}/{reaction_id}")
+def get_reaction_info2(model_name: str, reaction_id: str, 
+        db_src: str = Query(None), view_name: str = Query(None)):
+    """Get the information of the reaction. db_src can be set 'bigg' or 'metanetx'.
+
+    Parameters:
+    ---
+    model_name: model name, such as iJO1366. Both base_model and user_defined_model can be specified.
+
+    reaction_id: reaction name such as MDH
+
+    db_src: database source. Currently, 'bigg' or 'metanetx' can be set.
+
+    view_name: If the view file (such as iJO1366) is set, the 'reaction_name' parameter  can be set with the index of the reaction instead of its name.
+    """
+
+    import information
+    model_type = object_manager.check_model_type(model_name)
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    # First, get the name of the reaction from the model file.
+    if view_name != None:
+        model_handler.set_id_type( get_specified_view_path(view_name) )
+        reaction_id = model_handler.get_reaction_name(reaction_id)
+
+    model_property = object_manager.model_property(model_name)
+    # Get the database type of the model
+    model_db_type = None
+    if model_property != None and "reaction_db" in model_property:
+        model_db_type = model_property["database_type"]
+
+    # DB source specified by user
+    if db_src == None:
+        db_src = model_db_type  # default value
+
+    db_table = {
+        "bigg" : "bigg.reaction", "metanetx" : "metanetx.reaction",
+    }
+    if model_db_type in db_table:   
+        # ex) bigg => bigg.reaction
+        model_db_type = db_table[model_db_type]
+    else:
+        raise HTTPException(status_code=404, detail="Model DB not found")
+
+    if db_src in db_table:
+        db_src = db_table[db_src]
+    else:
+        raise HTTPException(status_code=404, detail="Specified DB not found")
+
+    if model_db_type != db_src:
+        reaction_id = information.convert_name(model_db_type, reaction_id, db_src)
+
+    ret = None
+    if reaction_id != None:
+        ret = information.get_reaction_information(reaction_id, db_src)
+    if ret != None:
+        return { "reaction_information": ret }
+    else:
+        raise HTTPException(status_code=404, detail="Reaction {} not found at {}".format(reaction_id, db_src))
+
+
+@app.get("/save/{model_name}/{commands}/{author}/{new_model_name}", responses={404: {'description': 'Model not found'}}, deprecated=True)
+def save(model_name: str, commands: str, author: str, new_model_name: str, view_name : str = Query(None) ):
+    """ Save user model.
+
+    Parameters:
+    ---
+    model_name: model name, such as iJO1366. Both base_model and user_defined_model can be specified.
+
+    commands: additional command such as knockout and bound. The delimiters are  '|' and '#' for command and arguments, respectively.  For example, 'knockout#TMAOR2|bound#DHAPT#0.01#0.9|
+
+    author: author name
+
+    new_model_name: author name
+
+    view_name: If reactions in commands are specified by the edgeID of the view, specify the view.
+    """
+
+    if len(commands) == 0 or len(author) == 0:
+        raise HTTPException(status_code=500, detail='Both the commands and author must be specified')
+    if new_model_name in object_manager.list_user_models():
+        raise HTTPException(status_code=500, detail='The name {new_model_name} already exists'.format(new_model_name))
+
+    # First, Check the requested model either base_model or user_model
+    model_type = object_manager.check_model_type(model_name)
+
+    # Then, load therequested model.
+    model_handler = ModelHandler() 
+    if model_type == "base_model" :
+        model_path = object_manager.model_property(model_name)["path"]
+        model_handler.set_base_model(model_name, model_path)
+    elif model_type == "user_model":
+        model_path = object_manager.user_model_property(model_name)["path"]
+        model_handler.load_user_model(model_path)
+    else:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    # if the reactions in the argument 'commmands' are specified by the edgeID defined in the view,
+    # We have to generate the table.
+    edgeID_to_rxnID = None
+    if view_name != None:
+        #edgeID_to_rxnID = generate_edgeID_to_rxnID_map(view_name)
+        edgeID_to_rxnID = None 
+        model_handler.set_id_type( get_specified_view_path(view_name) )
+
+    if commands != None:
+        command_processed = process_command(commands, edgeID_to_rxnID)
+        for cmd in command_processed:
+            model_handler.add_modification_command(cmd)
+    
+    new_model_file_basename = "{}.yaml".format(new_model_name)
+    new_model_file_path = os.path.join(DataDir, new_model_file_basename )
+    model_handler.set_author(author)
+    model_handler.set_model_name(new_model_name)
+    model_handler.save_user_model(new_model_file_path)
+    object_manager.register_model(new_model_name, new_model_file_path, model_handler.get_base_model_name(), model_name )
+    return {"new_model_name" : new_model_name}
+
+
+

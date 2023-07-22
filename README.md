@@ -1,26 +1,43 @@
 # answer\_talker
 
-Install `miniconda` first (https://docs.conda.io/en/latest/miniconda.html).
+## Create Environments
+We strongly recomend to make a separated python environment.
 
 ```
-$ conda create -n answer_talker
-$ conda activate answer_talker
+$ python -m venv env
+$ source env/bin/activate
 ```
 
-Install libraries:
+## Install dependencies
+
+### Automaticaly
+
+This process can be done by `preparation.sh` script (for LINUX and MacOS only).
+
+### By hand
+
+First, install dependent libraries.
 
 ```
-$ conda install -c conda-forge fastapi uvicorn cobra
+$ pip install -r requirements.txt
 ```
 
-Preparation before launch the server
+Download database files and place them in `./models`.
 
 ```
-$ mkdir data
-$ python default.py
+wget http://bigg.ucsd.edu/static/namespace/bigg_models_reactions.txt
+wget http://bigg.ucsd.edu/static/namespace/bigg_models_metabolites.txt
+wget https://www.metanetx.org/cgi-bin/mnxget/mnxref/reac_prop.tsv
+wget https://github.com/ecell/id2id/releases/download/test2/id2id.tsv
 ```
 
-Run the server with:
+Run Initialization before launch server
+
+```
+$ python obj_manager.py -c
+```
+
+## Run the server
 
 ```
 $ uvicorn --host [your ip address] --port 8000 app:app
@@ -28,4 +45,7 @@ $ uvicorn --host [your ip address] --port 8000 app:app
 
 Open your browser at `http://[your ip address]:8000/docs`.
 
+![docs](./image/docs_image.png)
+
 See more about FastAPI here: https://fastapi.tiangolo.com/
+
