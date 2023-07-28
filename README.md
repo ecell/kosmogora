@@ -1,3 +1,5 @@
+<img src="./image/Kosmogora-Logo.png"  alt="logo" height=400px/>
+
 # Kosmogora
 The goal of Kosmogora is to provide a server that centralizes management and collection of biological data spread across multiple databases. Centralization is relevant as biological databases have grown in numbers and sizes. They now each require specific knowledge to efficiently manipulate and dig information out of them. Instead, Kosmogora will provide a simpler http API for the users and will gather and convert data internally before returning the result to the user in JSON format. This is used in [ECellDive](https://github.com/ecell/ECell_Dive).
 
