@@ -115,13 +115,11 @@ def initialize():
         os.mkdir(DataDir)
 
     model_set = {
-            'sample1' : {"database_type" : "kegg", "default_view" : "sample1", "version" : "1.0.0", "organ" : "EColi", "path": "./models/sample1.xml" },
             'iJO1366' : {"database_type" : "bigg", "default_view" : "iJO1366", "version" : "1.0.0", "organ" : "EColi", "path": "./models/iJO1366.xml", 
                 "reaction_db": "./models/bigg_models_reactions.txt", 
                 "metabolites_db": "./models/bigg_models_metabolites.txt"   }
     }
     view_set = {
-            "sample1" : {"database_type" : "kegg", "model" : "sample1", "version" : "1.0.0", "organ" : "EColi", "path": "./models/sample1.cyjs" },
             "iJO1366" : {"database_type" : "bigg", "model" : "iJO1366", "version" : "1.0.0", "organ" : "EColi", "path": "./models/iJO1366.cyjs" }
     }
     if not os.path.isfile(BaseModelList):
