@@ -133,7 +133,7 @@ def list_reaction_ids(model_name: str):
 
 
 @app.get("/solve/{model_name}/", responses={404: {'description': 'Model not found'}} )
-def solve2(model_name: str, command : Union[List[str], None] = Query(default=None), view_name: str = Query(default=None)):
+def solve(model_name: str, command : Union[List[str], None] = Query(default=None), view_name: str = Query(default=None)):
     """ Solve the model.
 
     Parameters:
@@ -185,7 +185,7 @@ def solve2(model_name: str, command : Union[List[str], None] = Query(default=Non
     return data
 
 @app.get("/save/{model_name}/{author}/{new_model_name}", responses={404: {'description': 'Model not found'}})
-def save2(model_name: str, author: str, new_model_name: str, command: Union[List[str], None] = Query(None),  view_name : str = Query(None) ):
+def save(model_name: str, author: str, new_model_name: str, command: Union[List[str], None] = Query(None),  view_name : str = Query(None) ):
     """ Save user model. Saved models can be shown in by the 'open_user_model' API.
 
     Parameters:
@@ -296,38 +296,8 @@ def get_metabolite_info(model_name: str, metabolite_id: str, view_name: str = Qu
         raise HTTPException(status_code=404, detail="Model not found")
 
 
-@app.get("/reaction_information/{model_name}/{reaction_id}", deprecated=True)
-def get_reaction_info(model_name: str, reaction_id: str, view_name: str = Query(None) ):
-    model_type = object_manager.check_model_type(model_name)
-    model_handler = ModelHandler() 
-    if model_type == "base_model" :
-        model_path = object_manager.model_property(model_name)["path"]
-        model_handler.set_base_model(model_name, model_path)
-    elif model_type == "user_model":
-        model_path = object_manager.user_model_property(model_name)["path"]
-        model_handler.load_user_model(model_path)
-    else:
-        raise HTTPException(status_code=404, detail="Model not found")
-
-    if view_name != None:
-        model_handler.set_id_type( get_specified_view_path(view_name) )
-    model_property = object_manager.model_property(model_name)
-    if model_property is not None:
-        if "reaction_db" in model_property:
-            reaction_db = model_property["reaction_db"]
-            reaction_info = model_handler.get_reaction_information(reaction_db, reaction_id)
-            if reaction_info != {}:
-                return { "reaction_information": reaction_info }
-            else:
-                raise HTTPException(
-                        status_code=404, detail="reaction name is not defined in the db".format(model_name))
-        else:
-            raise HTTPException(status_code=404, detail="reaction_db is not defined in the {}".format(model_name))
-    else:
-        raise HTTPException(status_code=404, detail="Model not found")
-
-@app.get("/reaction_information2/{model_name}/{reaction_id}")
-def get_reaction_info2(model_name: str, reaction_id: str, 
+@app.get("/reaction_information/{model_name}/{reaction_id}")
+def get_reaction_info(model_name: str, reaction_id: str, 
         db_src: str = Query(None), view_name: str = Query(None)):
     """Get the information of the reaction. db_src can be set 'bigg' or 'metanetx'.
 
