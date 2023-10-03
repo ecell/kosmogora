@@ -365,6 +365,8 @@ def get_reaction_info(model_name: str, reaction_id: str,
         raise HTTPException(status_code=404, detail="Reaction {} not found at {}".format(reaction_id, db_src))
 
 
-
+@app.get("/modules")
+def get_module_information():
+    return {"modules": ["FBA"]}
 
 
