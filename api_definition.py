@@ -28,7 +28,7 @@ schema = {
         "request": {
             "pathParameters" : [],
             "queryParameters": [
-                {"id": "base_model_name", "type": "str" }
+                {"id": "base_model_name", "value_type": "str" }
             ]
         },
         "response": {
