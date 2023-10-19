@@ -393,7 +393,7 @@ def get_api_information(api_id: str | None = None):
             "metabolite_information",
             "reaction_information",
         ]
-        s = json.dumps( {"apis" : api_list} )
+        s = {"apis" : api_list} 
         return JSONResponse(content = s)
     else:
         if api_id in api_definition.schema:
