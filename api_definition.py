@@ -7,8 +7,44 @@ schema = {
             "queryParameters": [],
         },
         "responce" : {
-            "key": "models", "value": "modelList",
+            "key": "models", "value_type": "str",
         },
+    },
+    "list_views" : {
+        "httpMethod": "GET",
+        "request": {
+            "pathParameters" : [],
+            "queryParameters": [
+                {"id": "model_name", "type": "str" }
+            ]
+        },
+        "responce" : {
+            "key": "views", 
+            "value_type": "str",
+        },
+    },
+    "list_user_model" : {
+        "httpMethod": "GET",
+        "request": {
+            "pathParameters" : [],
+            "queryParameters": [
+                {"id": "base_model_name", "type": "str" }
+            ]
+        },
+        "response": {
+            "key": "user_models",
+            "value_type" : "str"
+        }
+    },
+    "list_reaction_id" : {
+        "httpMethod": "GET",
+        "request": {
+            "pathParameters" : [],
+            "queryParameters": [
+                {"id": "model_name", "type": "str" }
+            ]
+        },
+        "response": "list[str]",
     },
 
     "solve": {
@@ -24,7 +60,26 @@ schema = {
         }, 
         "responce": {
             "key" : "fluxes",
-            "value": "list[list[reaction_id, flux]]",
+            "value_type": "list[list[str, float]]",
+        }
+    },
+
+    "save": {
+        "httpMethod": "GET",
+        "request" : {
+            "pathParameters" : [
+                {"id": "model_name", "type" : "str"},
+                {"id": "author", "type" : "str"},
+                {"id": "new_model_name", "type" : "str"},
+            ],
+            "queryParameters": [
+                {"id": "command", "type" : "list[str]"},
+                {"id": "view_name", "type" : "str"},
+            ]
+        }, 
+        "responce": {
+            "key" : "new_model_name",
+            "value_type": "str",
         }
     },
 
