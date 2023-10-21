@@ -372,7 +372,7 @@ def get_module_information():
     return {"modules": ["FBA"]}
 
 @app.get("/apis/")
-def get_api_information(api_id: str | None = None):
+def get_api_information(api_id: str = Query(None)):
     import api_definition
     import json
     if api_id == None:
