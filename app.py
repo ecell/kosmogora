@@ -3,6 +3,8 @@ from obj_manager import ModelViewManager, DataDir
 from model_handler import ModelHandler
 from typing import Tuple, List, Union
 import os
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 
 class XMLResponse(Response):
     media_type = "application/xml"
@@ -365,6 +367,37 @@ def get_reaction_info(model_name: str, reaction_id: str,
         raise HTTPException(status_code=404, detail="Reaction {} not found at {}".format(reaction_id, db_src))
 
 
+@app.get("/modules")
+def get_module_information():
+    return {"modules": ["FBA"]}
 
-
-
+@app.get("/apis/")
+def get_api_information(api_id: str = Query(None)):
+    import api_definition
+    import json
+    if api_id == None:
+        api_list = [
+            "list_models", 
+            "user_model_tree", 
+            "list_views", 
+            "open_sbml", 
+            "open_sbml", 
+            "get_model_property", 
+            "open_view",
+            "get_view_property",
+            "list_user_model",
+            "open_user_model",
+            "list_reaction_id",
+            "solve",
+            "save",
+            "metabolite_information",
+            "reaction_information",
+        ]
+        s = {"apis" : api_list} 
+        return JSONResponse(content = s)
+    else:
+        if api_id in api_definition.schema:
+            s = json.dumps( api_definition.schema[api_id] )
+            return JSONResponse(content = s)
+        else:
+            return None

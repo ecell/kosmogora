@@ -37,8 +37,8 @@ Call those commands from the root of this repository
 ```
 wget http://bigg.ucsd.edu/static/namespace/bigg_models_reactions.txt -OutFile ./models/bigg_models_reactions.txt
 wget http://bigg.ucsd.edu/static/namespace/bigg_models_metabolites.txt -OutFile ./models/bigg_models_metabolites.txt
-wget https://www.metanetx.org/cgi-bin/mnxget/mnxref/reac_prop.tsv -OutFile ./models/reac_prop.txt
-wget https://github.com/ecell/id2id/releases/download/test2/id2id.tsv -OutFile ./models/id2id.txt
+wget https://www.metanetx.org/cgi-bin/mnxget/mnxref/reac_prop.tsv -OutFile ./models/reac_prop.tsv
+wget https://github.com/ecell/id2id/releases/download/test2/id2id.tsv -OutFile ./models/id2id.tsv
 ```
 
 *Note: Currently, we are indeed downloading the content of the database and store them locally. This is to avoid the hassle of handling the query API of each databases and to focus on handling the requests between other systems and Kosmogora (as it is the case with [ECellDive](https://github.com/ecell/ECell_Dive))*
